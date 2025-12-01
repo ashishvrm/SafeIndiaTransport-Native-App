@@ -1,0 +1,119 @@
+import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import type { Bilty, BiltyStatus, BiltyStatusHistoryItem, PaymentType } from '../models/bilty';
+
+function normalizeNumber(value: any, fallback = 0): number {
+  if (typeof value === 'number') return value;
+  if (value && typeof value.toMillis === 'function') {
+    return value.toMillis();
+  }
+  return fallback;
+}
+
+function normalizeString(value: any, fallback = ''): string {
+  if (typeof value === 'string') return value;
+  return fallback;
+}
+
+function normalizeStatusHistory(value: any): BiltyStatusHistoryItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => ({
+    status: normalizeString(item?.status) as BiltyStatus,
+    note: item?.note ? String(item.note) : undefined,
+    location: item?.location ? String(item.location) : undefined,
+    changedAt: normalizeNumber(item?.changedAt, Date.now()),
+  }));
+}
+
+export async function fetchAllBilties(): Promise<Bilty[]> {
+  const ref = collection(db, 'bilties');
+  const q = query(ref, orderBy('date', 'desc'));
+
+  const snapshot = await getDocs(q);
+
+  const result: Bilty[] = snapshot.docs.map((docSnap) => {
+    const data = docSnap.data();
+
+    return {
+      id: docSnap.id,
+      biltyNumber: normalizeString(data.biltyNumber),
+      date: normalizeNumber(data.date, Date.now()),
+
+      consignorId: normalizeString(data.consignorId),
+      consigneeId: normalizeString(data.consigneeId),
+
+      origin: normalizeString(data.origin),
+      destination: normalizeString(data.destination),
+
+      vehicleId: data.vehicleId ? String(data.vehicleId) : undefined,
+      driverId: data.driverId ? String(data.driverId) : undefined,
+
+      goodsDescription: normalizeString(data.goodsDescription),
+      noOfPackages: normalizeNumber(data.noOfPackages, 0),
+      totalWeightKg: normalizeNumber(data.totalWeightKg, 0),
+
+      freightAmount: normalizeNumber(data.freightAmount, 0),
+      otherCharges: data.otherCharges != null ? normalizeNumber(data.otherCharges, 0) : undefined,
+      gstAmount: data.gstAmount != null ? normalizeNumber(data.gstAmount, 0) : undefined,
+      totalAmount: normalizeNumber(data.totalAmount, 0),
+      paymentType: normalizeString(data.paymentType) as PaymentType,
+
+      status: normalizeString(data.status) as any,
+      statusHistory: normalizeStatusHistory(data.statusHistory),
+
+      createdBy: normalizeString(data.createdBy),
+      createdAt: normalizeNumber(data.createdAt, Date.now()),
+      updatedAt: normalizeNumber(data.updatedAt, Date.now()),
+      attachments: Array.isArray(data.attachments)
+        ? data.attachments.map((x: any) => String(x))
+        : [],
+    };
+  });
+
+  return result;
+}
+export async function fetchBiltyById(id: string): Promise<Bilty | null> {
+  const ref = doc(db, 'bilties', id);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    return null;
+  }
+
+  const data = snap.data();
+
+  return {
+    id: snap.id,
+    biltyNumber: normalizeString(data.biltyNumber),
+    date: normalizeNumber(data.date, Date.now()),
+
+    consignorId: normalizeString(data.consignorId),
+    consigneeId: normalizeString(data.consigneeId),
+
+    origin: normalizeString(data.origin),
+    destination: normalizeString(data.destination),
+
+    vehicleId: data.vehicleId ? String(data.vehicleId) : undefined,
+    driverId: data.driverId ? String(data.driverId) : undefined,
+
+    goodsDescription: normalizeString(data.goodsDescription),
+    noOfPackages: normalizeNumber(data.noOfPackages, 0),
+    totalWeightKg: normalizeNumber(data.totalWeightKg, 0),
+
+    freightAmount: normalizeNumber(data.freightAmount, 0),
+    otherCharges: data.otherCharges != null ? normalizeNumber(data.otherCharges, 0) : undefined,
+    gstAmount: data.gstAmount != null ? normalizeNumber(data.gstAmount, 0) : undefined,
+    totalAmount: normalizeNumber(data.totalAmount, 0),
+    paymentType: normalizeString(data.paymentType) as PaymentType,
+
+    status: normalizeString(data.status) as any,
+    statusHistory: normalizeStatusHistory(data.statusHistory),
+
+    createdBy: normalizeString(data.createdBy),
+    createdAt: normalizeNumber(data.createdAt, Date.now()),
+    updatedAt: normalizeNumber(data.updatedAt, Date.now()),
+    attachments: Array.isArray(data.attachments)
+      ? data.attachments.map((x: any) => String(x))
+      : [],
+  };
+}
