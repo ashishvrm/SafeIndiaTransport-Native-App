@@ -1,4 +1,14 @@
-import { addDoc, collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  doc,
+  getDoc,
+  addDoc,
+  where,
+  updateDoc,
+} from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Bilty, BiltyStatus, BiltyStatusHistoryItem, PaymentType } from '../models/bilty';
 
@@ -18,6 +28,23 @@ export interface NewBiltyInput {
   driverId?: string;
   createdBy: string;
 }
+export interface EditableBiltyFields {
+  consignorId: string;
+  consigneeId: string;
+  origin: string;
+  destination: string;
+  goodsDescription: string;
+  noOfPackages: number;
+  totalWeightKg: number;
+  freightAmount: number;
+  otherCharges?: number;
+  gstAmount?: number;
+  paymentType: PaymentType;
+  vehicleId?: string;
+  driverId?: string;
+  status: BiltyStatus;
+}
+
 function normalizeNumber(value: any, fallback = 0): number {
   if (typeof value === 'number') return value;
   if (value && typeof value.toMillis === 'function') {
@@ -180,4 +207,86 @@ export async function createBilty(input: NewBiltyInput): Promise<string> {
   });
 
   return docRef.id;
+}
+export async function fetchBiltiesForConsignee(consigneeId: string): Promise<Bilty[]> {
+  const ref = collection(db, 'bilties');
+  const q = query(ref, where('consigneeId', '==', consigneeId), orderBy('date', 'desc'));
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map((docSnap) => {
+    const data = docSnap.data();
+
+    return {
+      id: docSnap.id,
+      biltyNumber: normalizeString(data.biltyNumber),
+      date: normalizeNumber(data.date, Date.now()),
+
+      consignorId: normalizeString(data.consignorId),
+      consigneeId: normalizeString(data.consigneeId),
+
+      origin: normalizeString(data.origin),
+      destination: normalizeString(data.destination),
+
+      vehicleId: data.vehicleId ? String(data.vehicleId) : undefined,
+      driverId: data.driverId ? String(data.driverId) : undefined,
+
+      goodsDescription: normalizeString(data.goodsDescription),
+      noOfPackages: normalizeNumber(data.noOfPackages, 0),
+      totalWeightKg: normalizeNumber(data.totalWeightKg, 0),
+
+      freightAmount: normalizeNumber(data.freightAmount, 0),
+      otherCharges:
+        data.otherCharges != null ? normalizeNumber(data.otherCharges, 0) : undefined,
+      gstAmount:
+        data.gstAmount != null ? normalizeNumber(data.gstAmount, 0) : undefined,
+      totalAmount: normalizeNumber(data.totalAmount, 0),
+      paymentType: normalizeString(data.paymentType) as PaymentType,
+
+      status: normalizeString(data.status) as any,
+      statusHistory: normalizeStatusHistory(data.statusHistory),
+
+      createdBy: normalizeString(data.createdBy),
+      createdAt: normalizeNumber(data.createdAt, Date.now()),
+      updatedAt: normalizeNumber(data.updatedAt, Date.now()),
+      attachments: Array.isArray(data.attachments)
+        ? data.attachments.map((x: any) => String(x))
+        : [],
+    };
+  });
+}
+export async function updateBilty(
+  id: string,
+  fields: EditableBiltyFields,
+): Promise<void> {
+  const ref = doc(db, 'bilties', id);
+  const now = Date.now();
+
+  const totalAmount =
+    fields.freightAmount +
+    (fields.otherCharges ?? 0) +
+    (fields.gstAmount ?? 0);
+
+  await updateDoc(ref, {
+    consignorId: fields.consignorId,
+    consigneeId: fields.consigneeId,
+    origin: fields.origin,
+    destination: fields.destination,
+    goodsDescription: fields.goodsDescription,
+    noOfPackages: fields.noOfPackages,
+    totalWeightKg: fields.totalWeightKg,
+
+    freightAmount: fields.freightAmount,
+    otherCharges: fields.otherCharges ?? 0,
+    gstAmount: fields.gstAmount ?? 0,
+    totalAmount,
+
+    paymentType: fields.paymentType,
+    vehicleId: fields.vehicleId ?? null,
+    driverId: fields.driverId ?? null,
+
+    status: fields.status,
+    updatedAt: now,
+    // statusHistory: keep as-is for now, we’re not touching it here
+  });
 }

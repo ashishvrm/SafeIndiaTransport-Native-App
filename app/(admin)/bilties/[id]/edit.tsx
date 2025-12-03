@@ -1,8 +1,5 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { fetchAllParties } from '../../../src/data/partiesRepository';
-import type { Party } from '../../../src/models/party';
-
 import {
     Alert,
     Button,
@@ -14,40 +11,81 @@ import {
     TextInput,
     View,
 } from 'react-native';
-import { useAuth } from '../../../src/context/AuthContext';
-import { createBilty, NewBiltyInput } from '../../../src/data/biltiesRepository';
-import { colors } from '../../../src/theme/colors';
+import { useAuth } from '../../../../src/context/AuthContext';
+import { EditableBiltyFields, fetchBiltyById, updateBilty } from '../../../../src/data/biltiesRepository';
+import { fetchAllParties } from '../../../../src/data/partiesRepository';
+import type { Bilty, BiltyStatus } from '../../../../src/models/bilty';
+import type { Party } from '../../../../src/models/party';
+import { colors } from '../../../../src/theme/colors';
 
-export default function NewBiltyScreen() {
+export default function EditBiltyScreen() {
   const { user } = useAuth();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [consignorId, setConsignorId] = useState('');
-  const [consigneeId, setConsigneeId] = useState('');
-  const [origin, setOrigin] = useState('Delhi');
-  const [destination, setDestination] = useState('Mumbai');
-  const [goodsDescription, setGoodsDescription] = useState('General goods');
-  const [noOfPackages, setNoOfPackages] = useState('1');
-  const [totalWeightKg, setTotalWeightKg] = useState('100');
-  const [freightAmount, setFreightAmount] = useState('0');
-  const [otherCharges, setOtherCharges] = useState('0');
-  const [gstAmount, setGstAmount] = useState('0');
-  const [paymentType, setPaymentType] = useState<'to_pay' | 'paid' | 'to_be_billed'>('to_pay');
-  const [vehicleId, setVehicleId] = useState('');
-  const [driverId, setDriverId] = useState('');
+
+  const [bilty, setBilty] = useState<Bilty | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
   const [parties, setParties] = useState<Party[]>([]);
   const [partiesLoading, setPartiesLoading] = useState<boolean>(true);
   const [partiesError, setPartiesError] = useState<string | null>(null);
 
+  const [consignorId, setConsignorId] = useState('');
+  const [consigneeId, setConsigneeId] = useState('');
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+  const [goodsDescription, setGoodsDescription] = useState('');
+  const [noOfPackages, setNoOfPackages] = useState('');
+  const [totalWeightKg, setTotalWeightKg] = useState('');
+  const [freightAmount, setFreightAmount] = useState('');
+  const [otherCharges, setOtherCharges] = useState('');
+  const [gstAmount, setGstAmount] = useState('');
+  const [paymentType, setPaymentType] = useState<'to_pay' | 'paid' | 'to_be_billed'>('to_pay');
+  const [vehicleId, setVehicleId] = useState('');
+  const [driverId, setDriverId] = useState('');
+  const [status, setStatus] = useState<BiltyStatus>('created');
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!user) {
-    return (
-      <View style={styles.center}>
-        <Text>You must be logged in as admin to create a bilty.</Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    const load = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const data = await fetchBiltyById(String(id));
+        if (!data) {
+          setError('Bilty not found');
+          return;
+        }
+        setBilty(data);
+
+        // Pre-fill fields from bilty
+        setConsignorId(data.consignorId);
+        setConsigneeId(data.consigneeId);
+        setOrigin(data.origin);
+        setDestination(data.destination);
+        setGoodsDescription(data.goodsDescription);
+        setNoOfPackages(String(data.noOfPackages));
+        setTotalWeightKg(String(data.totalWeightKg));
+        setFreightAmount(String(data.freightAmount));
+        setOtherCharges(String(data.otherCharges ?? 0));
+        setGstAmount(String(data.gstAmount ?? 0));
+        setPaymentType(data.paymentType);
+        setVehicleId(data.vehicleId ?? '');
+        setDriverId(data.driverId ?? '');
+        setStatus(data.status);
+      } catch (e: any) {
+        console.error('[EditBilty] Error loading bilty', e);
+        setError(e?.message || 'Failed to load bilty');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [id]);
+
   useEffect(() => {
     const loadParties = async () => {
       try {
@@ -56,15 +94,46 @@ export default function NewBiltyScreen() {
         const data = await fetchAllParties();
         setParties(data);
       } catch (e: any) {
-        console.error('[NewBilty] Error loading parties', e);
+        console.error('[EditBilty] Error loading parties', e);
         setPartiesError(e?.message || 'Failed to load parties');
       } finally {
         setPartiesLoading(false);
       }
     };
-
     loadParties();
   }, []);
+
+  if (!user) {
+    return (
+      <View style={styles.center}>
+        <Text>You must be logged in as admin to edit a bilty.</Text>
+      </View>
+    );
+  }
+
+  if (loading && !bilty) {
+    return (
+      <View style={styles.center}>
+        <Text>Loading bilty…</Text>
+      </View>
+    );
+  }
+
+  if (error && !bilty) {
+    return (
+      <View style={styles.center}>
+        <Text style={{ color: 'red' }}>{error}</Text>
+      </View>
+    );
+  }
+
+  const getPartyName = (partyId: string): string => {
+    const p = parties.find((x) => x.id === partyId);
+    return p ? p.name : partyId;
+  };
+
+  const consignorLabel = consignorId ? getPartyName(consignorId) : 'Select consignor';
+  const consigneeLabel = consigneeId ? getPartyName(consigneeId) : 'Select consignee';
 
   const handleSave = async () => {
     try {
@@ -92,9 +161,9 @@ export default function NewBiltyScreen() {
         return;
       }
 
-      const input: NewBiltyInput = {
-        consignorId: consignorId.trim(),
-        consigneeId: consigneeId.trim(),
+      const fields: EditableBiltyFields = {
+        consignorId,
+        consigneeId,
         origin: origin.trim(),
         destination: destination.trim(),
         goodsDescription: goodsDescription.trim(),
@@ -106,22 +175,22 @@ export default function NewBiltyScreen() {
         paymentType,
         vehicleId: vehicleId.trim() || undefined,
         driverId: driverId.trim() || undefined,
-        createdBy: user.uid,
+        status,
       };
 
-      const newId = await createBilty(input);
+      await updateBilty(String(id), fields);
 
-      Alert.alert('Success', `Bilty created successfully (ID: ${newId})`, [
+      Alert.alert('Success', 'Bilty updated successfully', [
         {
           text: 'OK',
           onPress: () => {
-            router.replace('/(admin)/bilties');
+            router.replace(`/(admin)/bilties/${id}`);
           },
         },
       ]);
     } catch (e: any) {
-      console.error('[NewBilty] Error creating bilty', e);
-      setError(e?.message || 'Failed to create bilty');
+      console.error('[EditBilty] Error updating bilty', e);
+      setError(e?.message || 'Failed to update bilty');
     } finally {
       setSaving(false);
     }
@@ -131,14 +200,6 @@ export default function NewBiltyScreen() {
     (parseFloat(freightAmount || '0') || 0) +
     (parseFloat(otherCharges || '0') || 0) +
     (parseFloat(gstAmount || '0') || 0);
-    
-  const getPartyName = (id: string): string => {
-    const p = parties.find((x) => x.id === id);
-    return p ? p.name : id;
-  };
-
-  const consignorLabel = consignorId ? getPartyName(consignorId) : 'Select consignor';
-  const consigneeLabel = consigneeId ? getPartyName(consigneeId) : 'Select consignee';
 
   return (
     <KeyboardAvoidingView
@@ -146,11 +207,11 @@ export default function NewBiltyScreen() {
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>New Bilty</Text>
+        <Text style={styles.title}>Edit Bilty {bilty?.biltyNumber}</Text>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-                <Text style={styles.sectionTitle}>Parties</Text>
+        <Text style={styles.sectionTitle}>Parties</Text>
 
         {partiesLoading && (
           <Text style={styles.infoText}>Loading parties…</Text>
@@ -282,9 +343,7 @@ export default function NewBiltyScreen() {
         <TextInput
           value={paymentType}
           onChangeText={(txt) =>
-            setPaymentType(
-              (txt as 'to_pay' | 'paid' | 'to_be_billed') || 'to_pay',
-            )
+            setPaymentType((txt as any) || 'to_pay')
           }
           style={styles.input}
         />
@@ -303,11 +362,21 @@ export default function NewBiltyScreen() {
           style={styles.input}
         />
 
+        <Text style={styles.sectionTitle}>Status</Text>
+        <Text style={styles.label}>Status (created / in_transit / delivered / cancelled)</Text>
+        <TextInput
+          value={status}
+          onChangeText={(txt) =>
+            setStatus((txt as any) || 'created')
+          }
+          style={styles.input}
+        />
+
         <View style={styles.buttonContainer}>
           {saving ? (
             <Text>Saving…</Text>
           ) : (
-            <Button title="Create Bilty" onPress={handleSave} />
+            <Button title="Save Changes" onPress={handleSave} />
           )}
         </View>
 
@@ -375,7 +444,7 @@ const styles = StyleSheet.create({
     color: 'red',
     marginBottom: 8,
   },
-    infoText: {
+  infoText: {
     fontSize: 12,
     color: colors.textSubtle,
     marginBottom: 4,

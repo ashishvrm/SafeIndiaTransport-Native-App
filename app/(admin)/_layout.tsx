@@ -42,6 +42,10 @@ export default function AdminLayout() {
                 name="bilties/[id]"
                 options={{ title: 'Bilty Details (Admin)' }}
             />
+            <Stack.Screen
+                name="bilties/[id]/edit"
+                options={{ title: 'Edit Bilty' }}
+            />
         </Stack>
     );
 }
