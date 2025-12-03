@@ -1,5 +1,5 @@
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { auth } from '../config/firebase';
 
 export type AppRole = 'admin' | 'customer';
@@ -38,22 +38,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged will update user + role
-  };
+  }, []);
 
-  const signOutUser = async () => {
+  const signOutUser = useCallback(async () => {
     await signOut(auth);
-  };
+  }, []);
 
-  const value: AuthContextType = {
+  const value: AuthContextType = useMemo(() => ({
     user,
     role,
     loading,
     signIn,
     signOutUser,
-  };
+  }), [user, role, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,16 +1,30 @@
-import { useAuth } from '@/src/context/AuthContext';
-import { Link } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
+import {
+    ActivityIndicator,
+    Button,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+} from 'react-native';
 import { db } from '../../src/config/firebase';
+import { useAuth } from '../../src/context/AuthContext';
 import { colors } from '../../src/theme/colors';
 
 export default function LoginScreen() {
-  const { user, role, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading, signIn } = useAuth();
 
-  const [firebaseStatus, setFirebaseStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle');
+  const [firebaseStatus, setFirebaseStatus] =
+    useState<'idle' | 'checking' | 'ok' | 'error'>('idle');
   const [firebaseMessage, setFirebaseMessage] = useState<string>('');
+
+  const [email, setEmail] = useState<string>('admin@test.com'); // default for easier testing
+  const [password, setPassword] = useState<string>('Admin123!');
+  const [loginLoading, setLoginLoading] = useState<boolean>(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkFirebase = async () => {
@@ -41,64 +55,112 @@ export default function LoginScreen() {
     checkFirebase();
   }, []);
 
+  const handleLogin = async () => {
+    try {
+      setLoginLoading(true);
+      setLoginError(null);
+      await signIn(email.trim(), password);
+      // Auth state + router redirects will take over
+    } catch (error: any) {
+      console.error('[Login] signIn error', error);
+      setLoginError(error?.message || 'Login failed');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.appTitle}>Transport Logistics App</Text>
-      <Text style={styles.subtitle}>Login (placeholder)</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.select({ ios: 'padding', android: undefined })}
+    >
+      <View style={styles.inner}>
+        <Text style={styles.appTitle}>Transport Logistics App</Text>
+        <Text style={styles.subtitle}>Login</Text>
 
-      {/* Firebase connection status */}
-      {firebaseStatus === 'checking' && (
-        <View style={styles.firebaseStatus}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={styles.firebaseText}>Checking Firebase…</Text>
-        </View>
-      )}
-      <View style={styles.authState}>
-        {authLoading ? (
-          <Text style={styles.authText}>Checking auth…</Text>
-        ) : user ? (
-          <Text style={styles.authText}>
-            Logged in as {user.email} ({role ?? 'no-role'})
-          </Text>
-        ) : (
-          <Text style={styles.authText}>Not logged in</Text>
+        {/* Firebase connection status */}
+        {firebaseStatus === 'checking' && (
+          <View style={styles.firebaseStatus}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.firebaseText}>Checking Firebase…</Text>
+          </View>
         )}
-      </View>
-      {firebaseStatus === 'ok' && (
-        <View style={styles.firebaseStatus}>
-          <Text style={[styles.firebaseText, { color: colors.primary }]}>
-            Firebase OK: {firebaseMessage || 'Connected'}
-          </Text>
-        </View>
-      )}
-      {firebaseStatus === 'error' && (
-        <View style={styles.firebaseStatus}>
-          <Text style={[styles.firebaseText, { color: 'red' }]}>
-            Firebase error: {firebaseMessage || 'Check config'}
-          </Text>
-        </View>
-      )}
+        {firebaseStatus === 'ok' && (
+          <View style={styles.firebaseStatus}>
+            <Text style={[styles.firebaseText, { color: colors.primary }]}>
+              Firebase OK: {firebaseMessage || 'Connected'}
+            </Text>
+          </View>
+        )}
+        {firebaseStatus === 'error' && (
+          <View style={styles.firebaseStatus}>
+            <Text style={[styles.firebaseText, { color: 'red' }]}>
+              Firebase error: {firebaseMessage || 'Check config'}
+            </Text>
+          </View>
+        )}
 
-      <View style={styles.links}>
-        <Text style={styles.sectionLabel}>Quick nav (dev only):</Text>
-        <Link href="/(admin)/" asChild>
-          <Button title="Go to Admin Dashboard" />
-        </Link>
-        <Link href="/(customer)/" asChild>
-          <Button title="Go to Customer Dashboard" />
-        </Link>
+        {/* Auth state (debug) */}
+        <View style={styles.authState}>
+          {authLoading ? (
+            <Text style={styles.authText}>Checking auth…</Text>
+          ) : user ? (
+            <Text style={styles.authText}>
+              Logged in as {user.email} ({role ?? 'no-role'})
+            </Text>
+          ) : (
+            <Text style={styles.authText}>Not logged in</Text>
+          )}
+        </View>
+
+        {/* Login form */}
+        <View style={styles.form}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="you@example.com"
+            style={styles.input}
+          />
+
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="••••••••"
+            style={styles.input}
+          />
+
+          {loginError && (
+            <Text style={[styles.errorText]}>{loginError}</Text>
+          )}
+
+          <View style={styles.buttonContainer}>
+            {loginLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Button title="Login" onPress={handleLogin} />
+            )}
+          </View>
+        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
+  },
+  inner: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: colors.background,
   },
   appTitle: {
     fontSize: 24,
@@ -108,20 +170,11 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    marginBottom: 24,
-    color: colors.textSubtle,
-  },
-  links: {
-    gap: 12,
-    width: '100%',
-    marginTop: 16,
-  },
-  sectionLabel: {
-    marginBottom: 8,
+    marginBottom: 16,
     color: colors.textSubtle,
   },
   firebaseStatus: {
-    marginBottom: 16,
+    marginBottom: 8,
     alignItems: 'center',
   },
   firebaseText: {
@@ -129,10 +182,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   authState: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   authText: {
     fontSize: 12,
     color: colors.textSubtle,
+  },
+  form: {
+    width: '100%',
+    marginTop: 8,
+  },
+  label: {
+    fontSize: 14,
+    color: colors.textMain,
+    marginBottom: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    backgroundColor: colors.surface,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 8,
+    fontSize: 12,
+  },
+  buttonContainer: {
+    marginTop: 4,
   },
 });

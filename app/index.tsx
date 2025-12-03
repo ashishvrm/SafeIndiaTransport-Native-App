@@ -1,10 +1,10 @@
-import { Redirect, Stack } from 'expo-router';
+import { Redirect } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useAuth } from '../../src/context/AuthContext';
-import { colors } from '../../src/theme/colors';
+import { useAuth } from '../src/context/AuthContext';
+import { colors } from '../src/theme/colors';
 
-export default function AuthLayout() {
+export default function RootIndex() {
   const { user, role, loading } = useAuth();
 
   if (loading) {
@@ -16,22 +16,20 @@ export default function AuthLayout() {
     );
   }
 
-  if (user && role === 'admin') {
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  if (role === 'admin') {
     return <Redirect href="/(admin)" />;
   }
 
-  if (user && role === 'customer') {
+  if (role === 'customer') {
     return <Redirect href="/(customer)" />;
   }
 
-  return (
-    <Stack
-      screenOptions={{
-        headerShown: true,
-        title: 'Login',
-      }}
-    />
-  );
+  // Fallback: if user exists but no role, send to login
+  return <Redirect href="/(auth)/login" />;
 }
 
 const styles = StyleSheet.create({

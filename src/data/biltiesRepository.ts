@@ -1,7 +1,23 @@
-import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Bilty, BiltyStatus, BiltyStatusHistoryItem, PaymentType } from '../models/bilty';
 
+export interface NewBiltyInput {
+  consignorId: string;
+  consigneeId: string;
+  origin: string;
+  destination: string;
+  goodsDescription: string;
+  noOfPackages: number;
+  totalWeightKg: number;
+  freightAmount: number;
+  otherCharges?: number;
+  gstAmount?: number;
+  paymentType: PaymentType;
+  vehicleId?: string;
+  driverId?: string;
+  createdBy: string;
+}
 function normalizeNumber(value: any, fallback = 0): number {
   if (typeof value === 'number') return value;
   if (value && typeof value.toMillis === 'function') {
@@ -116,4 +132,52 @@ export async function fetchBiltyById(id: string): Promise<Bilty | null> {
       ? data.attachments.map((x: any) => String(x))
       : [],
   };
+}
+export async function createBilty(input: NewBiltyInput): Promise<string> {
+  const now = Date.now();
+
+  const biltyNumber = `BLTY-${now}`; // simple client-side bilty number for now
+
+  const ref = collection(db, 'bilties');
+
+  const docRef = await addDoc(ref, {
+    biltyNumber,
+    date: now,
+
+    consignorId: input.consignorId,
+    consigneeId: input.consigneeId,
+
+    origin: input.origin,
+    destination: input.destination,
+
+    vehicleId: input.vehicleId ?? null,
+    driverId: input.driverId ?? null,
+
+    goodsDescription: input.goodsDescription,
+    noOfPackages: input.noOfPackages,
+    totalWeightKg: input.totalWeightKg,
+
+    freightAmount: input.freightAmount,
+    otherCharges: input.otherCharges ?? 0,
+    gstAmount: input.gstAmount ?? 0,
+    totalAmount:
+      input.freightAmount + (input.otherCharges ?? 0) + (input.gstAmount ?? 0),
+    paymentType: input.paymentType,
+
+    status: 'created',
+    statusHistory: [
+      {
+        status: 'created',
+        note: 'Bilty created from mobile app',
+        changedAt: now,
+      },
+    ],
+
+    createdBy: input.createdBy,
+    createdAt: now,
+    updatedAt: now,
+    attachments: [],
+  });
+
+  return docRef.id;
 }
