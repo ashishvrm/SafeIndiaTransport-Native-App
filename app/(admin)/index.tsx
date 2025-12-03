@@ -28,11 +28,8 @@ export default function AdminDashboardScreen() {
         <Link href="/(admin)/bilties/new" asChild>
           <Button title="Create New Bilty" />
         </Link>
-      </View>
-
-      <View style={styles.actions}>
-        <Link href="/(admin)/bilties" asChild>
-          <Button title="View all Bilties" />
+        <Link href="/(admin)/customers" asChild>
+          <Button title="View all Customers" />
         </Link>
       </View>
 

@@ -2,6 +2,7 @@ import { Link } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Button,
     FlatList,
     StyleSheet,
     Text,
@@ -152,6 +153,15 @@ export default function AdminBiltyListScreen() {
                     );
                 })}
             </View>
+            <View style={styles.actions}>
+                <Link href="/(admin)/bilties" asChild>
+                    <Button title="View all Bilties" />
+                </Link>
+
+                <Link href="/(admin)/bilties/new" asChild>
+                    <Button title="Create New Bilty" />
+                </Link>
+            </View>
 
             {loading && (
                 <View style={styles.center}>
@@ -265,5 +275,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         marginBottom: 8,
+    },
+    actions: {
+        marginBottom: 16,
+        gap: 8,
     },
 });

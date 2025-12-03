@@ -1,4 +1,4 @@
-import { collection, getDocs, orderBy, query, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, doc, getDoc, addDoc, } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Party } from '../models/party';
 
@@ -72,4 +72,45 @@ export async function fetchPartyById(id: string): Promise<Party | null> {
     createdAt: normalizeNumber(data.createdAt, Date.now()),
     updatedAt: normalizeNumber(data.updatedAt, Date.now()),
   };
+}
+export interface NewCustomerInput {
+  name: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  gstin?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  // in future we can add type here if needed
+}
+export async function createCustomerAccount(input: NewCustomerInput): Promise<string> {
+  const now = Date.now();
+
+  const ref = collection(db, 'parties');
+
+  const docRef = await addDoc(ref, {
+    name: input.name.trim(),
+    contactPerson: input.contactPerson?.trim() || null,
+    phone: input.phone?.trim() || null,
+    email: input.email?.trim() || null,
+    gstin: input.gstin?.trim() || null,
+    addressLine1: input.addressLine1?.trim() || null,
+    addressLine2: input.addressLine2?.trim() || null,
+    city: input.city?.trim() || null,
+    state: input.state?.trim() || null,
+    pincode: input.pincode?.trim() || null,
+    type: 'consignee', // treat customer accounts as consignees
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return docRef.id;
+}
+export async function fetchCustomerParties(): Promise<Party[]> {
+  const all = await fetchAllParties();
+  return all.filter((p) => p.type === 'consignee' || p.type === 'both');
 }
