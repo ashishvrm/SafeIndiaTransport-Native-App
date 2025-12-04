@@ -48,8 +48,8 @@ export default function CustomersListScreen() {
       <View style={styles.cardActions}>
         <Link
           href={{
-            pathname: '/(admin)/bilties',
-            params: { customerId: item.id },
+            pathname: '/(admin)/customers/[id]/bilties',
+            params: { id: item.id },
           }}
           asChild
         >

@@ -2,6 +2,7 @@ import { Link, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Button,
     FlatList,
     StyleSheet,
     Text,
@@ -32,8 +33,9 @@ export default function CustomerBiltiesScreen() {
 
         const [party, biltyList] = await Promise.all([
           fetchPartyById(String(id)),
-          fetchBiltiesForConsignee(String(id)),
+          fetchBiltiesForConsignee(String(id)),  // 👈 only this customer’s bilties
         ]);
+
         setCustomer(party);
         setBilties(biltyList);
       } catch (e: any) {
@@ -86,14 +88,30 @@ export default function CustomerBiltiesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>
-          {customer?.name ?? 'Customer'}
-        </Text>
-        {customer?.city && customer?.state && (
-          <Text style={styles.subtitle}>
-            {customer.city}, {customer.state}
+      {/* header with customer name + New Bilty */}
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>
+            {customer?.name ?? 'Customer'}
           </Text>
+          {customer?.city && customer?.state && (
+            <Text style={styles.subtitle}>
+              {customer.city}, {customer.state}
+            </Text>
+          )}
+        </View>
+
+        {/* 👇 Create new bilty for THIS customer */}
+        {id && (
+          <Link
+            href={{
+              pathname: '/(admin)/bilties/new',
+              params: { consigneeId: String(id) }, // pass customer id
+            }}
+            asChild
+          >
+            <Button title="New Bilty" />
+          </Link>
         )}
       </View>
 
@@ -117,10 +135,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
+  headerRow: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   title: {
     fontSize: 20,

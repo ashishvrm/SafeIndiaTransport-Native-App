@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { fetchAllParties } from '../../../src/data/partiesRepository';
 import type { Party } from '../../../src/models/party';
@@ -21,6 +21,9 @@ import { colors } from '../../../src/theme/colors';
 export default function NewBiltyScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const { consigneeId: consigneeParam } = useLocalSearchParams<{
+    consigneeId?: string;
+  }>();
   const [consignorId, setConsignorId] = useState('');
   const [consigneeId, setConsigneeId] = useState('');
   const [origin, setOrigin] = useState('Delhi');
@@ -40,6 +43,8 @@ export default function NewBiltyScreen() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [consigneePrefilled, setConsigneePrefilled] = useState(false);
+
 
   if (!user) {
     return (
@@ -48,6 +53,8 @@ export default function NewBiltyScreen() {
       </View>
     );
   }
+
+  // Load parties on mount
   useEffect(() => {
     const loadParties = async () => {
       try {
@@ -65,6 +72,22 @@ export default function NewBiltyScreen() {
 
     loadParties();
   }, []);
+
+  // Prefill consignee if passed via params
+  useEffect(() => {
+    if (
+      !consigneePrefilled &&
+      consigneeParam &&
+      typeof consigneeParam === 'string' &&
+      parties.length > 0
+    ) {
+      const match = parties.find((p) => p.id === consigneeParam);
+      if (match) {
+        setConsigneeId(match.id);
+        setConsigneePrefilled(true);
+      }
+    }
+  }, [consigneePrefilled, consigneeParam, parties]);
 
   const handleSave = async () => {
     try {
