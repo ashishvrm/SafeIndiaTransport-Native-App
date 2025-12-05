@@ -8,6 +8,7 @@ import {
   addDoc,
   where,
   updateDoc,
+  deleteDoc, 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Bilty, BiltyStatus, BiltyStatusHistoryItem, PaymentType } from '../models/bilty';
@@ -289,4 +290,8 @@ export async function updateBilty(
     updatedAt: now,
     // statusHistory: keep as-is for now, we’re not touching it here
   });
+}
+export async function deleteBilty(id: string): Promise<void> {
+  const ref = doc(db, 'bilties', id);
+  await deleteDoc(ref);
 }

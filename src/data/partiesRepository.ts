@@ -1,4 +1,4 @@
-import { collection, getDocs, orderBy, query, doc, getDoc, addDoc, } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, doc, getDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Party } from '../models/party';
 
@@ -112,5 +112,18 @@ export async function createCustomerAccount(input: NewCustomerInput): Promise<st
 }
 export async function fetchCustomerParties(): Promise<Party[]> {
   const all = await fetchAllParties();
-  return all.filter((p) => p.type === 'consignee' || p.type === 'both');
+  return all.filter(
+    (p) =>
+      p.isActive &&
+      (p.type === 'consignee' || p.type === 'both'),
+  );
+}
+
+export async function deactivateCustomerAccount(id: string): Promise<void> {
+  const ref = doc(db, 'parties', id);
+
+  await updateDoc(ref, {
+    isActive: false,
+    updatedAt: Date.now(),
+  });
 }

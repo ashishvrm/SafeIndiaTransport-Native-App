@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { fetchBiltyById } from '../../../src/data/biltiesRepository';
+import { ActivityIndicator, Alert, Button, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { deleteBilty, fetchBiltyById } from '../../../src/data/biltiesRepository';
 import { fetchPartyById } from '../../../src/data/partiesRepository';
 import type { Bilty } from '../../../src/models/bilty';
 import type { Party } from '../../../src/models/party';
@@ -56,6 +56,31 @@ export default function AdminBiltyDetailScreen() {
             console.error('[AdminBiltyDetail] Share error', e);
         }
     };
+    const handleDelete = () => {
+  if (!id) return;
+
+  Alert.alert(
+    'Delete Bilty',
+    'Are you sure you want to delete this bilty? This action cannot be undone.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteBilty(String(id));
+            router.replace('/(admin)/bilties'); // back to all bilties
+          } catch (e) {
+            console.error('[AdminBiltyDetail] Delete error', e);
+            Alert.alert('Error', 'Failed to delete bilty. Please try again.');
+          }
+        },
+      },
+    ],
+  );
+};
+
     useEffect(() => {
         const load = async () => {
             if (!id) return;
@@ -127,16 +152,20 @@ export default function AdminBiltyDetailScreen() {
             <View style={styles.shareRow}>
                 <Button title="Share Bilty" onPress={handleShare} />
             </View>
-            {/* edit button */}
+
             <View style={styles.actionsRow}>
-                <Button
+            <Button
                 title="Edit Bilty"
                 onPress={() => {
-                    if (id) {
+                if (id) {
                     router.push(`/(admin)/bilties/${id}/edit`);
-                    }
+                }
                 }}
-                />
+            />
+            </View>
+
+            <View style={styles.actionsRow}>
+            <Button title="Delete Bilty" onPress={handleDelete} />
             </View>
 
             <View style={styles.section}>
