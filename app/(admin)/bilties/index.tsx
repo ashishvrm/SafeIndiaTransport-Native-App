@@ -1,283 +1,275 @@
-import { Link } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FlatList, SafeAreaView, StyleSheet, View } from 'react-native';
 import {
     ActivityIndicator,
     Button,
-    FlatList,
-    StyleSheet,
+    Chip,
     Text,
     TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+} from 'react-native-paper';
+import { StatusListItem } from '../../../src/components/ui/StatusListItem';
 import { fetchAllBilties } from '../../../src/data/biltiesRepository';
 import type { Bilty } from '../../../src/models/bilty';
 import { colors } from '../../../src/theme/colors';
 
+type StatusFilter = 'all' | 'created' | 'in_transit' | 'delivered';
+type RecentFilter = 'all' | '7d' | '30d';
+
 export default function AdminBiltyListScreen() {
-    const [bilties, setBilties] = useState<Bilty[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
-    const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'in_transit' | 'delivered'>('all');
-    const [searchText, setSearchText] = useState<string>('');
-    const [recentFilter, setRecentFilter] = useState<'all' | '7d' | '30d'>('all');
+  const router = useRouter();
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                const data = await fetchAllBilties();
-                setBilties(data);
-            } catch (e: any) {
-                console.error('[AdminBiltyList] Error loading bilties', e);
-                setError(e?.message || 'Failed to load bilties');
-            } finally {
-                setLoading(false);
-            }
-        };
-        const filteredBilties = bilties.filter((b) => {
-            // 1) Status filter
-            if (statusFilter !== 'all' && b.status !== statusFilter) {
-                return false;
-            }
+  const [bilties, setBilties] = useState<Bilty[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-            // 2) Recent filter
-            if (recentFilter !== 'all') {
-                const now = Date.now();
-                const ageMs = now - b.date;
-                const days =
-                    recentFilter === '7d'
-                        ? 7
-                        : recentFilter === '30d'
-                            ? 30
-                            : 0;
-                if (days > 0) {
-                    const maxAgeMs = days * 24 * 60 * 60 * 1000;
-                    if (ageMs > maxAgeMs) return false;
-                }
-            }
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [recentFilter, setRecentFilter] = useState<RecentFilter>('all');
+  const [searchText, setSearchText] = useState<string>('');
 
-            // 3) Search filter: biltyNumber, origin, destination, goodsDescription
-            if (searchText.trim().length > 0) {
-                const q = searchText.trim().toLowerCase();
-                const haystack =
-                    [
-                        b.biltyNumber,
-                        b.origin,
-                        b.destination,
-                        b.goodsDescription,
-                    ]
-                        .filter(Boolean)
-                        .join(' ')
-                        .toLowerCase();
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchAllBilties();
+        setBilties(data);
+      } catch (e: any) {
+        console.error('[AdminBiltyList] Error loading bilties', e);
+        setError(e?.message || 'Failed to load bilties');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-                if (!haystack.includes(q)) {
-                    return false;
-                }
-            }
+    load();
+  }, []);
 
-            return true;
-        });
-        load();
-    }, []);
+  const filteredBilties = useMemo(() => {
+    const now = Date.now();
 
-    const renderItem = ({ item }: { item: Bilty }) => (
-        <Link
-            href={`/(admin)/bilties/${item.id}`}
-            asChild
-        >
-            <TouchableOpacity style={styles.card}>
-                <Text style={styles.biltyNumber}>{item.biltyNumber}</Text>
-                <Text style={styles.route}>
-                    {item.origin} → {item.destination}
-                </Text>
-                <Text style={styles.meta}>
-                    Status: {item.status} • Amount: ₹{item.totalAmount}
-                </Text>
-            </TouchableOpacity>
-        </Link>
-    );
+    return bilties.filter((b) => {
+      // 1) Status filter
+      if (statusFilter !== 'all' && b.status !== statusFilter) {
+        return false;
+      }
+
+      // 2) Recent filter
+      if (recentFilter !== 'all') {
+        const ageMs = now - b.date;
+        const days =
+          recentFilter === '7d' ? 7 : recentFilter === '30d' ? 30 : 0;
+
+        if (days > 0) {
+          const maxAgeMs = days * 24 * 60 * 60 * 1000;
+          if (ageMs > maxAgeMs) return false;
+        }
+      }
+
+      // 3) Search filter
+      if (searchText.trim().length > 0) {
+        const q = searchText.trim().toLowerCase();
+        const haystack = [
+          b.biltyNumber,
+          b.origin,
+          b.destination,
+          b.goodsDescription,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        if (!haystack.includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [bilties, statusFilter, recentFilter, searchText]);
+
+  const renderItem = ({ item }: { item: Bilty }) => {
+    let iconName: React.ComponentProps<
+      typeof StatusListItem
+    >['iconName'] = 'file-document-outline';
+    let iconColor = colors.accentBlue;
+
+    if (item.status === 'in_transit') {
+      iconName = 'truck-delivery-outline';
+      iconColor = colors.accentYellow;
+    } else if (item.status === 'delivered') {
+      iconName = 'check-circle-outline';
+      iconColor = colors.accentGreen;
+    }
+
+    const subtitle = `${item.origin} → ${item.destination} • ₹${
+      item.totalAmount
+    } • ${item.status.replace('_', ' ')}`;
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>All Bilties (Admin)</Text>
-            {/* Search bar */}
-            <TextInput
-                placeholder="Search by bilty no, origin, destination, goods…"
-                value={searchText}
-                onChangeText={setSearchText}
-                style={styles.searchInput}
-            />
-
-            {/* Recent filter chips */}
-            <View style={styles.recentFilterRow}>
-                {(['all', '7d', '30d'] as const).map((val) => {
-                    const isActive = recentFilter === val;
-                    const label =
-                        val === 'all'
-                            ? 'All dates'
-                            : val === '7d'
-                                ? 'Last 7 days'
-                                : 'Last 30 days';
-
-                    return (
-                        <Text
-                            key={val}
-                            style={[
-                                styles.filterChip,
-                                isActive && styles.filterChipActive,
-                            ]}
-                            onPress={() => setRecentFilter(val)}
-                        >
-                            {label}
-                        </Text>
-                    );
-                })}
-            </View>
-
-            <View style={styles.filterRow}>
-                {(['all', 'created', 'in_transit', 'delivered'] as const).map((val) => {
-                    const isActive = statusFilter === val;
-                    return (
-                        <Text
-                            key={val}
-                            style={[
-                                styles.filterChip,
-                                isActive && styles.filterChipActive,
-                            ]}
-                            onPress={() => setStatusFilter(val)}
-                        >
-                            {val === 'all' ? 'All' : val.replace('_', ' ')}
-                        </Text>
-                    );
-                })}
-            </View>
-            <View style={styles.actions}>
-                <Link href="/(admin)/bilties" asChild>
-                    <Button title="View all Bilties" />
-                </Link>
-
-                <Link href="/(admin)/bilties/new" asChild>
-                    <Button title="Create New Bilty" />
-                </Link>
-            </View>
-
-            {loading && (
-                <View style={styles.center}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.infoText}>Loading bilties…</Text>
-                </View>
-            )}
-
-            {error && !loading && (
-                <View style={styles.center}>
-                    <Text style={[styles.infoText, { color: 'red' }]}>{error}</Text>
-                </View>
-            )}
-
-            {!loading && !error && bilties.length === 0 && (
-                <View style={styles.center}>
-                    <Text style={styles.infoText}>No bilties found.</Text>
-                </View>
-            )}
-
-            {!loading && !error && bilties.length > 0 && (
-                <FlatList
-                    data={bilties}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
-                />
-            )}
-        </View>
+      <StatusListItem
+        title={item.biltyNumber}
+        subtitle={subtitle}
+        iconName={iconName}
+        iconColor={iconColor}
+        onPress={() =>
+          router.push({
+            pathname: '/(admin)/bilties/[id]',
+            params: { id: item.id },
+          })
+        }
+      />
     );
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        <Text style={styles.title}>All Bilties</Text>
+
+        {/* Filters */}
+        <TextInput
+          mode="outlined"
+          placeholder="Search by number, route, goods…"
+          value={searchText}
+          onChangeText={setSearchText}
+          style={styles.searchInput}
+        />
+
+        <View style={styles.filterRow}>
+          {(['all', '7d', '30d'] as RecentFilter[]).map((val) => {
+            const label =
+              val === 'all'
+                ? 'All dates'
+                : val === '7d'
+                ? 'Last 7 days'
+                : 'Last 30 days';
+
+            return (
+              <Chip
+                key={val}
+                selected={recentFilter === val}
+                onPress={() => setRecentFilter(val)}
+                style={styles.chip}
+              >
+                {label}
+              </Chip>
+            );
+          })}
+        </View>
+
+        <View style={styles.filterRow}>
+          {(['all', 'created', 'in_transit', 'delivered'] as StatusFilter[]).map(
+            (val) => (
+              <Chip
+                key={val}
+                selected={statusFilter === val}
+                onPress={() => setStatusFilter(val)}
+                style={styles.chip}
+              >
+                {val === 'all' ? 'All status' : val.replace('_', ' ')}
+              </Chip>
+            ),
+          )}
+        </View>
+
+        <View style={styles.actionsRow}>
+          <Button
+            mode="contained"
+            onPress={() => router.push('/(admin)/bilties/new')}
+          >
+            New Bilty
+          </Button>
+        </View>
+
+        {/* Content */}
+        {loading && (
+          <View style={styles.center}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.infoText}>Loading bilties…</Text>
+          </View>
+        )}
+
+        {error && !loading && (
+          <View style={styles.center}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {!loading && !error && filteredBilties.length === 0 && (
+          <View style={styles.center}>
+            <Text style={styles.infoText}>No bilties match your filters.</Text>
+          </View>
+        )}
+
+        {!loading && !error && filteredBilties.length > 0 && (
+          <View style={styles.listWrapper}>
+            {/* FlatList is fine; this wrapper just adds padding */}
+            {/* @ts-ignore */}
+            <FlatList
+              data={filteredBilties}
+              keyExtractor={(item: Bilty) => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContent}
+            />
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 16,
-        backgroundColor: colors.background,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: '700',
-        marginBottom: 12,
-        color: colors.textMain,
-    },
-    listContent: {
-        paddingBottom: 24,
-    },
-    card: {
-        padding: 12,
-        borderRadius: 8,
-        backgroundColor: colors.surface,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    biltyNumber: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 4,
-        color: colors.textMain,
-    },
-    route: {
-        fontSize: 14,
-        marginBottom: 4,
-        color: colors.textMain,
-    },
-    meta: {
-        fontSize: 12,
-        color: colors.textSubtle,
-    },
-    center: {
-        marginTop: 16,
-        alignItems: 'center',
-    },
-    infoText: {
-        marginTop: 8,
-        fontSize: 12,
-        color: colors.textSubtle,
-    },
-    filterRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginBottom: 12,
-    },
-    filterChip: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: colors.border,
-        marginRight: 8,
-        marginBottom: 8,
-        fontSize: 12,
-        color: colors.textMain,
-    },
-    filterChipActive: {
-        backgroundColor: colors.primary,
-        borderColor: colors.primaryDark,
-        color: '#ffffff',
-    },
-    searchInput: {
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        marginBottom: 8,
-        backgroundColor: colors.surface,
-    },
-    recentFilterRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginBottom: 8,
-    },
-    actions: {
-        marginBottom: 16,
-        gap: 8,
-    },
+  safe: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textMain,
+    marginBottom: 8,
+  },
+  searchInput: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 4,
+  },
+  chip: {
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  actionsRow: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  listWrapper: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 24,
+  },
+  center: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  infoText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: colors.textSubtle,
+  },
+  errorText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: colors.danger,
+  },
 });

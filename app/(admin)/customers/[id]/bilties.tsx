@@ -1,14 +1,17 @@
-import { Link, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import {
+    FlatList,
+    SafeAreaView,
+    StyleSheet,
+    View,
+} from 'react-native';
 import {
     ActivityIndicator,
     Button,
-    FlatList,
-    StyleSheet,
     Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+} from 'react-native-paper';
+import { StatusListItem } from '../../../../src/components/ui/StatusListItem';
 import { fetchBiltiesForConsignee } from '../../../../src/data/biltiesRepository';
 import { fetchPartyById } from '../../../../src/data/partiesRepository';
 import type { Bilty } from '../../../../src/models/bilty';
@@ -17,6 +20,7 @@ import { colors } from '../../../../src/theme/colors';
 
 export default function CustomerBiltiesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
 
   const [customer, setCustomer] = useState<Party | null>(null);
   const [bilties, setBilties] = useState<Bilty[]>([]);
@@ -26,14 +30,13 @@ export default function CustomerBiltiesScreen() {
   useEffect(() => {
     const load = async () => {
       if (!id) return;
-
       try {
         setLoading(true);
         setError(null);
 
         const [party, biltyList] = await Promise.all([
           fetchPartyById(String(id)),
-          fetchBiltiesForConsignee(String(id)),  // 👈 only this customer’s bilties
+          fetchBiltiesForConsignee(String(id)),
         ]);
 
         setCustomer(party);
@@ -49,98 +52,116 @@ export default function CustomerBiltiesScreen() {
     load();
   }, [id]);
 
-  const renderItem = ({ item }: { item: Bilty }) => (
-    <Link
-      href={{
-        pathname: '/(admin)/bilties/[id]',
-        params: { id: item.id },
-      }}
-      asChild
-    >
-      <TouchableOpacity style={styles.card}>
-        <Text style={styles.biltyNumber}>{item.biltyNumber}</Text>
-        <Text style={styles.route}>
-          {item.origin} → {item.destination}
-        </Text>
-        <Text style={styles.small}>
-          Status: {item.status} • ₹{item.totalAmount}
-        </Text>
-      </TouchableOpacity>
-    </Link>
-  );
+  const renderItem = ({ item }: { item: Bilty }) => {
+    let iconName: React.ComponentProps<
+      typeof StatusListItem
+    >['iconName'] = 'file-document-outline';
+    let iconColor = colors.accentBlue;
+
+    if (item.status === 'in_transit') {
+      iconName = 'truck-delivery-outline';
+      iconColor = colors.accentYellow;
+    } else if (item.status === 'delivered') {
+      iconName = 'check-circle-outline';
+      iconColor = colors.accentGreen;
+    }
+
+    const subtitle = `${item.origin} → ${item.destination} • ₹${
+      item.totalAmount
+    } • ${item.status.replace('_', ' ')}`;
+
+    return (
+      <StatusListItem
+        title={item.biltyNumber}
+        subtitle={subtitle}
+        iconName={iconName}
+        iconColor={iconColor}
+        onPress={() =>
+          router.push({
+            pathname: '/(admin)/bilties/[id]',
+            params: { id: item.id },
+          })
+        }
+      />
+    );
+  };
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="small" color={colors.primary} />
-        <Text style={styles.infoText}>Loading bilties…</Text>
-      </View>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.infoText}>Loading bilties…</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text style={[styles.infoText, { color: 'red' }]}>{error}</Text>
-      </View>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* header with customer name + New Bilty */}
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>
-            {customer?.name ?? 'Customer'}
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{customer?.name ?? 'Customer'}</Text>
+        {customer?.city && customer?.state && (
+          <Text style={styles.subtitle}>
+            {customer.city}, {customer.state}
           </Text>
-          {customer?.city && customer?.state && (
-            <Text style={styles.subtitle}>
-              {customer.city}, {customer.state}
-            </Text>
-          )}
-        </View>
+        )}
 
-        {/* 👇 Create new bilty for THIS customer */}
         {id && (
-          <Link
-            href={{
-              pathname: '/(admin)/bilties/new',
-              params: { consigneeId: String(id) }, // pass customer id
-            }}
-            asChild
-          >
-            <Button title="New Bilty" />
-          </Link>
+          <View style={styles.headerActions}>
+            <Button
+              mode="contained"
+              onPress={() =>
+                router.push({
+                  pathname: '/(admin)/bilties/new',
+                  params: { consigneeId: String(id) },
+                })
+              }
+            >
+              New Bilty
+            </Button>
+          </View>
         )}
       </View>
 
-      <FlatList
-        data={bilties}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
+      <View style={styles.listContainer}>
+        {bilties.length === 0 ? (
           <Text style={styles.infoText}>
             No bilties found for this customer yet.
           </Text>
-        }
-      />
-    </View>
+        ) : (
+          // @ts-ignore
+          <FlatList
+            data={bilties}
+            keyExtractor={(item: Bilty) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  headerRow: {
+  header: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   title: {
     fontSize: 20,
@@ -148,45 +169,36 @@ const styles = StyleSheet.create({
     color: colors.textMain,
   },
   subtitle: {
-    fontSize: 14,
+    marginTop: 2,
     color: colors.textSubtle,
   },
+  headerActions: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  listContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
   listContent: {
-    padding: 16,
-    paddingBottom: 32,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
   },
   infoText: {
     marginTop: 8,
     fontSize: 12,
     color: colors.textSubtle,
   },
-  card: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 12,
-    marginBottom: 12,
-    backgroundColor: colors.surface,
-  },
-  biltyNumber: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textMain,
-  },
-  route: {
-    fontSize: 14,
-    marginTop: 2,
-    color: colors.textMain,
-  },
-  small: {
-    fontSize: 12,
-    marginTop: 4,
-    color: colors.textSubtle,
+  errorText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: colors.danger,
   },
 });

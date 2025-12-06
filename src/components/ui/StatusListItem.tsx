@@ -20,22 +20,25 @@ export function StatusListItem({
   iconColor = colors.primary,
   onPress,
 }: StatusListItemProps) {
+  const iconBg =
+    iconColor && iconColor.startsWith('#')
+      ? `${iconColor}1A` // light tint
+      : colors.primarySoft;
+
   const content = (
     <View style={styles.row}>
-      <View style={[styles.iconCircle, { backgroundColor: `${iconColor}20` }]}>
+      <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
         <MaterialCommunityIcons name={iconName} size={20} color={iconColor} />
       </View>
 
       <View style={styles.textCol}>
         <Text style={styles.title}>{title}</Text>
-        {subtitle ? (
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        ) : null}
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
 
       <MaterialCommunityIcons
         name="chevron-right"
-        size={22}
+        size={20}
         color={colors.textSubtle}
       />
     </View>
@@ -46,7 +49,12 @@ export function StatusListItem({
   }
 
   return (
-    <TouchableRipple onPress={onPress} style={styles.wrapper}>
+    <TouchableRipple
+      style={styles.wrapper}
+      onPress={onPress}
+      rippleColor={`${colors.primary}1A`}
+      borderless={false}
+    >
       {content}
     </TouchableRipple>
   );
@@ -57,13 +65,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: colors.surface,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: colors.surface,
   },
   iconCircle: {
     width: 36,
@@ -83,5 +91,6 @@ const styles = StyleSheet.create({
   subtitle: {
     color: colors.textSubtle,
     fontSize: 12,
+    marginTop: 2,
   },
 });
