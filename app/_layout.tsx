@@ -1,14 +1,21 @@
 import { Stack } from 'expo-router';
 import { MD3LightTheme, PaperProvider } from 'react-native-paper';
 import { AuthProvider } from '../src/context/AuthContext';
+import { colors } from '../src/theme/colors';
 
 const theme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    primary: '#2563EB',        // primary blue
-    secondary: '#0EA5E9',
-    background: '#F9FAFB',
+    primary: colors.primary,
+    secondary: colors.accentBlue,
+    background: colors.background,
+    surface: colors.surface,
+    surfaceVariant: colors.surfaceSoft,  
+    secondaryContainer: colors.primarySoft,
+    onPrimary: colors.textOnPrimary,
+    onSurface: colors.textMain,
+    outline: colors.border,
   },
 };
 

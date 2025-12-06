@@ -1,18 +1,22 @@
-// app/(admin)/index.tsx
-import { Link } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Link, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Card, Text } from 'react-native-paper';
+import { ActivityIndicator, Button, Text } from 'react-native-paper';
 import { AdminBottomNav } from '../../src/components/AdminBottomNav';
 import { useAuth } from '../../src/context/AuthContext';
 
+import { StatCard } from '../../src/components/ui/StatCard';
+import { StatusListItem } from '../../src/components/ui/StatusListItem';
 import { fetchAllBilties } from '../../src/data/biltiesRepository';
 import { fetchCustomerParties } from '../../src/data/partiesRepository';
 import type { Bilty } from '../../src/models/bilty';
 import type { Party } from '../../src/models/party';
+import { colors } from '../../src/theme/colors';
 
 export default function AdminDashboardScreen() {
   const { user, signOutUser } = useAuth();
+  const router = useRouter();
 
   const [bilties, setBilties] = useState<Bilty[]>([]);
   const [customers, setCustomers] = useState<Party[]>([]);
@@ -49,160 +53,142 @@ export default function AdminDashboardScreen() {
   const inProgressBilties = bilties.filter(
     (b) => b.status === 'created' || b.status === 'in_transit',
   );
-
   const completedBilties = bilties.filter((b) => b.status === 'delivered');
 
-  // Overdue = has a dueDate/expectedDeliveryDate in the past and not delivered/cancelled
   const now = Date.now();
   const overdueBilties = bilties.filter((b) => {
     const anyB = b as any;
     const rawDue = anyB.dueDate ?? anyB.expectedDeliveryDate;
     if (!rawDue) return false;
-
     const dueMs =
       typeof rawDue === 'number' ? rawDue : new Date(rawDue).getTime();
-
     if (!dueMs || Number.isNaN(dueMs)) return false;
-
     return (
       dueMs < now && b.status !== 'delivered' && b.status !== 'cancelled'
     );
   });
 
-  const renderBiltyRow = (bilty: Bilty) => (
-    <View key={bilty.id} style={styles.biltyRow}>
-      <Text variant="bodyMedium" style={styles.biltyTitle}>
-        {bilty.biltyNumber}
-      </Text>
-      <Text variant="bodySmall" style={styles.biltySub}>
-        {bilty.origin} → {bilty.destination} • {bilty.status}
-      </Text>
-    </View>
+  const renderBiltyRow = (
+    bilty: Bilty,
+    iconName: React.ComponentProps<typeof MaterialCommunityIcons>['name'],
+    iconColor: string
+  ) => (
+    <StatusListItem
+      key={bilty.id}
+      title={bilty.biltyNumber}
+      subtitle={`${bilty.origin} → ${bilty.destination}`}
+      iconName={iconName}
+      iconColor={iconColor}
+      onPress={() =>
+        router.push({
+          pathname: '/(admin)/bilties/[id]',
+          params: { id: bilty.id },
+        })
+      }
+    />
   );
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Header */}
           <View style={styles.header}>
-            <Text variant="headlineMedium" style={styles.title}>
-              Admin Dashboard
-            </Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
+            <Text style={styles.headerTitle}>Dashboard</Text>
+            <Text style={styles.headerSubtitle}>
               Welcome, {user?.email}
             </Text>
           </View>
 
+          {/* Loading / error */}
           {loading && (
-            <Card style={styles.card}>
-              <Card.Content style={styles.rowCenter}>
-                <ActivityIndicator />
-                <Text style={styles.loadingText}>Loading dashboard…</Text>
-              </Card.Content>
-            </Card>
+            <View style={styles.loadingRow}>
+              <ActivityIndicator />
+              <Text style={styles.loadingText}>Loading dashboard…</Text>
+            </View>
           )}
+          {error && <Text style={styles.errorText}>{error}</Text>}
 
-          {error && (
-            <Card style={styles.card}>
-              <Card.Content>
-                <Text style={styles.errorText}>{error}</Text>
-              </Card.Content>
-            </Card>
-          )}
+          {/* Total bilties */}
+          <StatCard
+            title="Total Bilties"
+            value={totalBilties}
+            subtitle="All bilties in the system"
+            actionLabel="View all Bilties"
+            onPressAction={() => router.push('/(admin)/bilties')}
+            tone="primary"
+          />
 
-          {/* 1. Total Bilties */}
-          <Card style={styles.card}>
-            <Card.Title title="Total Bilties" />
-            <Card.Content>
-              <Text variant="displaySmall" style={styles.metric}>
-                {totalBilties}
-              </Text>
-            </Card.Content>
-            <Card.Actions>
-              <Link href="/(admin)/bilties" asChild>
-                <Button mode="contained-tonal">View all Bilties</Button>
+          {/* Total customers */}
+          <StatCard
+            title="Total Customers"
+            value={totalCustomers}
+            subtitle="Your client accounts"
+            actionLabel="View all Customers"
+            onPressAction={() => router.push('/(admin)/customers')}
+          />
+
+          {/* In progress */}
+          <StatCard
+            title="In progress Bilties"
+            subtitle="Created or in transit"
+          >
+            {inProgressBilties.length === 0 ? (
+              <Text style={styles.emptyText}>No in-progress bilties.</Text>
+            ) : (
+              inProgressBilties
+                .slice(0, 5)
+                .map((b) =>
+                  renderBiltyRow(b, 'truck-delivery-outline', colors.accentBlue),
+                )
+            )}
+          </StatCard>
+
+          {/* Completed */}
+          <StatCard title="All completed Bilties" subtitle="Delivered">
+            {completedBilties.length === 0 ? (
+              <Text style={styles.emptyText}>No completed bilties yet.</Text>
+            ) : (
+              completedBilties
+                .slice(0, 5)
+                .map((b) =>
+                  renderBiltyRow(b, 'check-circle-outline', colors.accentGreen),
+                )
+            )}
+          </StatCard>
+
+          {/* Overdue */}
+          <StatCard
+            title="Overdue Bilties"
+            subtitle="Past due date & not delivered"
+          >
+            {overdueBilties.length === 0 ? (
+              <Text style={styles.emptyText}>No overdue bilties. 🎉</Text>
+            ) : (
+              overdueBilties
+                .slice(0, 5)
+                .map((b) =>
+                  renderBiltyRow(b, 'alert-circle-outline', colors.danger),
+                )
+            )}
+          </StatCard>
+
+          {/* Account */}
+          <StatCard title="Account" subtitle="Manage your admin account">
+            <View style={styles.accountRow}>
+              <Link href="/(admin)/profile" asChild>
+                <Button mode="outlined">Profile</Button>
               </Link>
-            </Card.Actions>
-          </Card>
-
-          {/* 2. Total Customers */}
-          <Card style={styles.card}>
-            <Card.Title title="Total Customers" />
-            <Card.Content>
-              <Text variant="displaySmall" style={styles.metric}>
-                {totalCustomers}
-              </Text>
-            </Card.Content>
-            <Card.Actions>
-              <Link href="/(admin)/customers" asChild>
-                <Button mode="contained-tonal">View all Customers</Button>
-              </Link>
-            </Card.Actions>
-          </Card>
-
-          {/* 3. In progress bilties */}
-          <Card style={styles.card}>
-            <Card.Title
-              title="In Progress Bilties"
-              subtitle="Created or in transit"
-            />
-            <Card.Content>
-              {inProgressBilties.length === 0 ? (
-                <Text variant="bodySmall" style={styles.emptyText}>
-                  No in-progress bilties.
-                </Text>
-              ) : (
-                inProgressBilties.slice(0, 5).map(renderBiltyRow)
-              )}
-            </Card.Content>
-          </Card>
-
-          {/* 4. Completed bilties */}
-          <Card style={styles.card}>
-            <Card.Title title="All Completed Bilties" subtitle="Delivered" />
-            <Card.Content>
-              {completedBilties.length === 0 ? (
-                <Text variant="bodySmall" style={styles.emptyText}>
-                  No completed bilties yet.
-                </Text>
-              ) : (
-                completedBilties.slice(0, 5).map(renderBiltyRow)
-              )}
-            </Card.Content>
-          </Card>
-
-          {/* 5. Overdue bilties */}
-          <Card style={styles.card}>
-            <Card.Title
-              title="Overdue Bilties"
-              subtitle="Past due date and not delivered"
-            />
-            <Card.Content>
-              {overdueBilties.length === 0 ? (
-                <Text variant="bodySmall" style={styles.emptyText}>
-                  No overdue bilties. 🎉
-                </Text>
-              ) : (
-                overdueBilties.slice(0, 5).map(renderBiltyRow)
-              )}
-            </Card.Content>
-          </Card>
-
-          {/* Account / Sign out */}
-          <Card style={styles.card}>
-            <Card.Title title="Account" subtitle="Manage your admin account" />
-            <Card.Actions>
-              <Button mode="text" onPress={signOutUser}>
+              <Button mode="text" onPress={signOutUser} style={styles.signOutBtn}>
                 Sign Out
               </Button>
-            </Card.Actions>
-          </Card>
+            </View>
+          </StatCard>
 
           <View style={{ height: 80 }} />
         </ScrollView>
       </View>
 
-      {/* Bottom nav stays as-is */}
       <AdminBottomNav />
     </SafeAreaView>
   );
@@ -211,7 +197,7 @@ export default function AdminDashboardScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
@@ -224,42 +210,38 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 16,
   },
-  title: {
+  headerTitle: {
+    fontSize: 24,
     fontWeight: '700',
+    color: colors.textMain,
   },
-  subtitle: {
+  headerSubtitle: {
     marginTop: 4,
-    opacity: 0.7,
+    color: colors.textSubtle,
   },
-  card: {
-    marginBottom: 12,
-  },
-  rowCenter: {
+  loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
   },
   loadingText: {
     marginLeft: 8,
+    color: colors.textSubtle,
   },
   errorText: {
-    color: '#DC2626',
-  },
-  metric: {
-    fontWeight: '700',
+    color: colors.danger,
+    marginBottom: 12,
   },
   emptyText: {
-    opacity: 0.7,
+    color: colors.textSubtle,
+    fontSize: 12,
   },
-  biltyRow: {
-    marginBottom: 8,
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  biltyTitle: {
-    fontWeight: '600',
-  },
-  biltySub: {
-    opacity: 0.7,
-  },
-  ml: {
+  signOutBtn: {
     marginLeft: 8,
   },
 });

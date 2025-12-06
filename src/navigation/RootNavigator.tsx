@@ -59,7 +59,7 @@ const RootNavigator: React.FC = () => {
           // Admin logged in
           <Stack.Screen
             name="AdminDashboard"
-            options={{ title: 'Admin Dashboard' }}
+            options={{ title: 'Admin Dashboard asd' }}
           >
             {(props) => (
               <AdminDashboardScreen {...props} onLogout={authContext.logout} />
