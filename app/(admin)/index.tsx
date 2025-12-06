@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Text } from 'react-native-paper';
+import { ActivityIndicator, Text } from 'react-native-paper';
 import { AdminBottomNav } from '../../src/components/AdminBottomNav';
 import { useAuth } from '../../src/context/AuthContext';
 
@@ -172,19 +172,6 @@ export default function AdminDashboardScreen() {
                 )
             )}
           </StatCard>
-
-          {/* Account */}
-          <StatCard title="Account" subtitle="Manage your admin account">
-            <View style={styles.accountRow}>
-              <Link href="/(admin)/profile" asChild>
-                <Button mode="outlined">Profile</Button>
-              </Link>
-              <Button mode="text" onPress={signOutUser} style={styles.signOutBtn}>
-                Sign Out
-              </Button>
-            </View>
-          </StatCard>
-
           <View style={{ height: 80 }} />
         </ScrollView>
       </View>

@@ -1,86 +1,150 @@
 // app/(admin)/profile.tsx
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
-import { Button, Card, TextInput } from 'react-native-paper';
+import {
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    View,
+} from 'react-native';
+import { Button, Text, TextInput } from 'react-native-paper';
+import { AdminBottomNav } from '../../src/components/AdminBottomNav';
 import { useAuth } from '../../src/context/AuthContext';
+import { colors } from '../../src/theme/colors';
 
 export default function AdminProfileScreen() {
-  const { user } = useAuth();
+  const { user, signOutUser } = useAuth();
 
-  const [name, setName] = useState(user?.displayName ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [gst, setGst] = useState('');
+  // Local editable fields – you can later wire these to backend/AsyncStorage
+  const [name, setName] = useState<string>('');
+  const [email, setEmail] = useState<string>(user?.email ?? '');
+  const [phone, setPhone] = useState<string>('');
+  const [address, setAddress] = useState<string>('');
+  const [gst, setGst] = useState<string>('');
 
-  // For now we just keep this local; later we can wire to Firestore.
   const handleSave = () => {
-    // TODO: persist profile for this user (Firestore/RTDB)
-    console.log('Save profile', { name, email, phone, address, gst });
+    // TODO: persist profile if/when you add backend/AsyncStorage.
+    // For now we just keep it local so nothing breaks.
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Card>
-        <Card.Title title="My Profile" />
-        <Card.Content>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        {/* Header with top-right Sign Out */}
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Account</Text>
+          <Button
+            mode="text"
+            onPress={signOutUser}
+            textColor={colors.danger}
+          >
+            Sign Out
+          </Button>
+        </View>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+        >
+          <Text style={styles.sectionTitle}>Profile details</Text>
+
           <TextInput
-            label="Name"
-            value={name}
             mode="outlined"
-            style={styles.input}
+            label="User Name"
+            value={name}
             onChangeText={setName}
+            style={styles.input}
           />
+
           <TextInput
+            mode="outlined"
             label="Email"
             value={email}
-            mode="outlined"
-            style={styles.input}
-            autoCapitalize="none"
-            keyboardType="email-address"
             onChangeText={setEmail}
+            style={styles.input}
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
+
           <TextInput
-            label="Phone Number"
-            value={phone}
             mode="outlined"
+            label="Phone number"
+            value={phone}
+            onChangeText={setPhone}
             style={styles.input}
             keyboardType="phone-pad"
-            onChangeText={setPhone}
           />
+
           <TextInput
+            mode="outlined"
             label="Address"
             value={address}
-            mode="outlined"
+            onChangeText={setAddress}
             style={styles.input}
             multiline
-            onChangeText={setAddress}
           />
+
           <TextInput
+            mode="outlined"
             label="GST Number"
             value={gst}
-            mode="outlined"
-            style={styles.input}
             onChangeText={setGst}
+            style={styles.input}
           />
-          <Button mode="contained" style={styles.button} onPress={handleSave}>
-            Save
-          </Button>
-        </Card.Content>
-      </Card>
-    </ScrollView>
+
+          <View style={styles.actionsRow}>
+            <Button mode="contained" onPress={handleSave}>
+              Save
+            </Button>
+          </View>
+
+          <View style={{ height: 80 }} />
+        </ScrollView>
+      </View>
+
+      {/* Keep the same bottom nav on this screen */}
+      <AdminBottomNav />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
-    padding: 16,
-    paddingBottom: 32,
+    flex: 1,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textMain,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textMain,
+    marginBottom: 8,
   },
   input: {
     marginBottom: 12,
   },
-  button: {
+  actionsRow: {
     marginTop: 8,
   },
 });
