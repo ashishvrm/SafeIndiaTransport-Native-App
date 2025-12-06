@@ -1,21 +1,28 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Button,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
     Text,
-    TextInput,
     View,
 } from 'react-native';
+import {
+    Card,
+    HelperText,
+    Button as PaperButton,
+    TextInput as PaperTextInput,
+} from 'react-native-paper';
 import { db } from '../../src/config/firebase';
 import { useAuth } from '../../src/context/AuthContext';
 import { colors } from '../../src/theme/colors';
 
+const isValidEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
+
 export default function LoginScreen() {
-  const { user, role, loading: authLoading, signIn } = useAuth();
+  const { signIn } = useAuth();
 
   const [firebaseStatus, setFirebaseStatus] =
     useState<'idle' | 'checking' | 'ok' | 'error'>('idle');
@@ -25,6 +32,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState<string>('Admin123!');
   const [loginLoading, setLoginLoading] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
 
   useEffect(() => {
     const checkFirebase = async () => {
@@ -55,11 +65,24 @@ export default function LoginScreen() {
     checkFirebase();
   }, []);
 
+  const emailError = emailTouched && !isValidEmail(email.trim());
+  const passwordError = passwordTouched && password.length < 6;
+
   const handleLogin = async () => {
+    const trimmedEmail = email.trim();
+
+    // simple client-side validation
+    if (!isValidEmail(trimmedEmail) || !password) {
+      setLoginError('Please enter a valid email and password.');
+      setEmailTouched(true);
+      setPasswordTouched(true);
+      return;
+    }
+
     try {
       setLoginLoading(true);
       setLoginError(null);
-      await signIn(email.trim(), password);
+      await signIn(trimmedEmail, password);
       // Auth state + router redirects will take over
     } catch (error: any) {
       console.error('[Login] signIn error', error);
@@ -75,77 +98,95 @@ export default function LoginScreen() {
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
       <View style={styles.inner}>
-        <Text style={styles.appTitle}>Transport Logistics App</Text>
-        <Text style={styles.subtitle}>Login</Text>
-
-        {/* Firebase connection status */}
-        {firebaseStatus === 'checking' && (
-          <View style={styles.firebaseStatus}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.firebaseText}>Checking Firebase…</Text>
+        {/* Logo + welcome copy */}
+        <View style={styles.header}>
+          <View style={styles.logoCircle}>
+            {/* Replace this icon with your actual logo later if you want */}
+            <MaterialCommunityIcons
+              name="truck-delivery-outline"
+              size={28}
+              color={colors.primary}
+            />
           </View>
-        )}
-        {firebaseStatus === 'ok' && (
-          <View style={styles.firebaseStatus}>
-            <Text style={[styles.firebaseText, { color: colors.primary }]}>
-              Firebase OK: {firebaseMessage || 'Connected'}
-            </Text>
-          </View>
-        )}
-        {firebaseStatus === 'error' && (
-          <View style={styles.firebaseStatus}>
-            <Text style={[styles.firebaseText, { color: 'red' }]}>
-              Firebase error: {firebaseMessage || 'Check config'}
-            </Text>
-          </View>
-        )}
-
-        {/* Auth state (debug) */}
-        <View style={styles.authState}>
-          {authLoading ? (
-            <Text style={styles.authText}>Checking auth…</Text>
-          ) : user ? (
-            <Text style={styles.authText}>
-              Logged in as {user.email} ({role ?? 'no-role'})
-            </Text>
-          ) : (
-            <Text style={styles.authText}>Not logged in</Text>
-          )}
+          <Text style={styles.brandName}>Safe India Transport</Text>
+          <Text style={styles.welcomeTitle}>Welcome back!</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Log in to manage your bilties and customers.
+          </Text>
         </View>
 
-        {/* Login form */}
-        <View style={styles.form}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="you@example.com"
-            style={styles.input}
-          />
+        {/* Card with form */}
+        <Card style={styles.card} mode="contained">
+          <Card.Content>
+            <Text style={styles.fieldLabel}>E-mail</Text>
+            <PaperTextInput
+              mode="outlined"
+              value={email}
+              onChangeText={setEmail}
+              onBlur={() => setEmailTouched(true)}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholder="you@example.com"
+              left={<PaperTextInput.Icon icon="email-outline" />}
+              error={emailError}
+              style={styles.input}
+            />
+            <HelperText type="error" visible={emailError}>
+              Please enter a valid email address.
+            </HelperText>
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="••••••••"
-            style={styles.input}
-          />
+            <Text style={styles.fieldLabel}>Password</Text>
+            <PaperTextInput
+              mode="outlined"
+              value={password}
+              onChangeText={setPassword}
+              onBlur={() => setPasswordTouched(true)}
+              secureTextEntry
+              placeholder="••••••••"
+              left={<PaperTextInput.Icon icon="lock-outline" />}
+              error={passwordError}
+              style={styles.input}
+            />
+            <HelperText type="error" visible={passwordError}>
+              Password should be at least 6 characters.
+            </HelperText>
 
-          {loginError && (
-            <Text style={[styles.errorText]}>{loginError}</Text>
-          )}
-
-          <View style={styles.buttonContainer}>
-            {loginLoading ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Button title="Login" onPress={handleLogin} />
+            {loginError && (
+              <Text style={styles.errorText}>{loginError}</Text>
             )}
-          </View>
-        </View>
+
+            <View style={styles.buttonContainer}>
+              {loginLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <PaperButton
+                  mode="contained"
+                  onPress={handleLogin}
+                  icon="arrow-right"
+                  contentStyle={styles.buttonContent}
+                  style={styles.button}
+                  labelStyle={styles.buttonLabel}
+                >
+                  Login
+                </PaperButton>
+              )}
+            </View>
+
+            {/* Small Firebase status text, non-intrusive */}
+            {firebaseStatus !== 'idle' && (
+              <Text
+                style={[
+                  styles.firebaseText,
+                  firebaseStatus === 'error' && { color: colors.danger },
+                ]}
+              >
+                {firebaseStatus === 'checking'
+                  ? 'Checking server connection…'
+                  : firebaseMessage}
+              </Text>
+            )}
+          </Card.Content>
+        </Card>
       </View>
     </KeyboardAvoidingView>
   );
@@ -154,64 +195,84 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.background, // soft app background
   },
   inner: {
     flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logoCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    marginBottom: 12,
   },
-  appTitle: {
+  brandName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSubtle,
+    marginBottom: 4,
+  },
+  welcomeTitle: {
     fontSize: 24,
     fontWeight: '700',
-    marginBottom: 8,
     color: colors.textMain,
+    marginBottom: 4,
+    textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 16,
-    color: colors.textSubtle,
-  },
-  firebaseStatus: {
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  firebaseText: {
-    marginTop: 4,
-    fontSize: 12,
-  },
-  authState: {
-    marginBottom: 16,
-  },
-  authText: {
-    fontSize: 12,
-    color: colors.textSubtle,
-  },
-  form: {
-    width: '100%',
-    marginTop: 8,
-  },
-  label: {
+  welcomeSubtitle: {
     fontSize: 14,
-    color: colors.textMain,
+    color: colors.textSubtle,
+    textAlign: 'center',
+  },
+  card: {
+    borderRadius: 24,
+    paddingVertical: 4,
+    backgroundColor: colors.surface,
+    elevation: 2,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    color: colors.textSubtle,
     marginBottom: 4,
   },
   input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
+    marginBottom: 4,
     backgroundColor: colors.surface,
   },
   errorText: {
-    color: 'red',
-    marginBottom: 8,
+    color: colors.danger,
+    marginTop: 4,
+    marginBottom: 4,
     fontSize: 12,
   },
   buttonContainer: {
-    marginTop: 4,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  button: {
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+  },
+  buttonContent: {
+    height: 48,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  firebaseText: {
+    marginTop: 8,
+    fontSize: 11,
+    color: colors.textSubtle,
+    textAlign: 'center',
   },
 });

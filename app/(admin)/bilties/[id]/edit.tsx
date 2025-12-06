@@ -1,16 +1,18 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Button,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Button,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { Menu } from 'react-native-paper';
 import { useAuth } from '../../../../src/context/AuthContext';
 import { EditableBiltyFields, fetchBiltyById, updateBilty } from '../../../../src/data/biltiesRepository';
 import { fetchAllParties } from '../../../../src/data/partiesRepository';
@@ -44,6 +46,14 @@ export default function EditBiltyScreen() {
   const [vehicleId, setVehicleId] = useState('');
   const [driverId, setDriverId] = useState('');
   const [status, setStatus] = useState<BiltyStatus>('created');
+  const STATUS_OPTIONS: { value: BiltyStatus; label: string }[] = [
+    { value: 'created' as BiltyStatus, label: 'Created' },
+    { value: 'loaded' as BiltyStatus, label: 'Loaded' },
+    { value: 'in_transit' as BiltyStatus, label: 'In transit' },
+    { value: 'delivered' as BiltyStatus, label: 'Delivered' },
+    { value: 'cancelled' as BiltyStatus, label: 'Cancelled' },
+  ];
+  const [statusMenuVisible, setStatusMenuVisible] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -363,14 +373,34 @@ export default function EditBiltyScreen() {
         />
 
         <Text style={styles.sectionTitle}>Status</Text>
-        <Text style={styles.label}>Status (created / in_transit / delivered / cancelled)</Text>
-        <TextInput
-          value={status}
-          onChangeText={(txt) =>
-            setStatus((txt as any) || 'created')
+        <Text style={styles.label}>Status</Text>
+
+        <Menu
+          visible={statusMenuVisible}
+          onDismiss={() => setStatusMenuVisible(false)}
+          anchor={
+            <TouchableOpacity
+              onPress={() => setStatusMenuVisible(true)}
+              style={styles.selectorBox}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.selectorValue}>
+                {STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}
+              </Text>
+            </TouchableOpacity>
           }
-          style={styles.input}
-        />
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <Menu.Item
+              key={option.value}
+              onPress={() => {
+                setStatus(option.value);
+                setStatusMenuVisible(false);
+              }}
+              title={option.label}
+            />
+          ))}
+        </Menu>
 
         <View style={styles.buttonContainer}>
           {saving ? (
