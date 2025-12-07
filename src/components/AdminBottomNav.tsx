@@ -14,36 +14,11 @@ type TabItem = {
 };
 
 const TABS: TabItem[] = [
-  {
-    key: 'home',
-    label: 'Home',
-    icon: 'home-variant',
-    href: '/(admin)',
-  },
-  {
-    key: 'customers',
-    label: 'Customers',
-    icon: 'account-group-outline',
-    href: '/(admin)/customers',
-  },
-  {
-    key: 'new',
-    label: 'New',
-    icon: 'plus-circle-outline',
-    href: '/(admin)/bilties/new',
-  },
-  {
-    key: 'bilties',
-    label: 'Bilties',
-    icon: 'file-document-multiple-outline',
-    href: '/(admin)/bilties',
-  },
-  {
-    key: 'account',
-    label: 'Account',
-    icon: 'account-circle-outline',
-    href: '/(admin)/profile',
-  },
+  { key: 'home',      label: 'Home',      icon: 'home-variant',                  href: '/(admin)' },
+  { key: 'customers', label: 'Customers', icon: 'account-group-outline',         href: '/(admin)/customers' },
+  { key: 'new',       label: 'New',       icon: 'plus-circle-outline',           href: '/(admin)/bilties/new' },
+  { key: 'bilties',   label: 'Bilties',   icon: 'file-document-multiple-outline',href: '/(admin)/bilties' },
+  { key: 'account',   label: 'Account',   icon: 'account-circle-outline',        href: '/(admin)/profile' },
 ];
 
 export function AdminBottomNav() {
@@ -51,14 +26,32 @@ export function AdminBottomNav() {
   const router = useRouter();
 
   const handlePress = (href: string) => {
+    // Already on this exact route ⇒ do nothing
     if (pathname === href) return;
-    router.push(href as any);
+
+    if (href === '/(admin)') {
+      // ✅ Home should not stack history – behave like a native tab root
+      router.replace(href as any);
+    } else {
+      // ✅ All other tabs keep the old behaviour (push),
+      // so back button still works like before
+      router.push(href as any);
+    }
+  };
+
+  const isActiveTab = (href: string) => {
+    if (href === '/(admin)') {
+      // Home is active only on its root
+      return pathname === href;
+    }
+    // Other tabs are active on their root and nested routes
+    return pathname === href || pathname.startsWith(href + '/');
   };
 
   return (
     <View style={styles.container}>
       {TABS.map((tab) => {
-        const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/');
+        const isActive = isActiveTab(tab.href);
 
         return (
           <TouchableOpacity
@@ -101,7 +94,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    backgroundColor: colors.primarySoft, // soft violet
+    backgroundColor: colors.primarySoft,
   },
   tab: {
     flex: 1,
