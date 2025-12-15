@@ -22,7 +22,11 @@ import {
     Text,
 } from 'react-native-paper';
 
-import { deleteBilty, fetchBiltyById } from '../../../src/data/biltiesRepository';
+import {
+    deleteBilty,
+    ensureBiltyPublicLink,
+    fetchBiltyById,
+} from '../../../src/data/biltiesRepository';
 import { fetchPartyById } from '../../../src/data/partiesRepository';
 import type { Bilty } from '../../../src/models/bilty';
 import type { Party } from '../../../src/models/party';
@@ -213,46 +217,26 @@ export default function AdminBiltyDetailScreen() {
   const [partyLoading, setPartyLoading] = useState<boolean>(false);
 
   const handleShare = async () => {
-    if (!bilty) return;
-
-    const consignorName = consignor?.name ?? bilty.consignorId;
-    const consigneeName = consignee?.name ?? bilty.consigneeId;
-
-    const lines = [
-      `Bilty No: ${bilty.biltyNumber}`,
-      `Route: ${bilty.origin} → ${bilty.destination}`,
-      '',
-      `Consignor: ${consignorName}`,
-      consignor?.city && consignor?.state
-        ? `  ${consignor.city}, ${consignor.state}`
-        : '',
-      consignor?.gstin ? `  GSTIN: ${consignor.gstin}` : '',
-      '',
-      `Consignee: ${consigneeName}`,
-      consignee?.city && consignee?.state
-        ? `  ${consignee.city}, ${consignee.state}`
-        : '',
-      consignee?.gstin ? `  GSTIN: ${consignee.gstin}` : '',
-      '',
-      `Goods: ${bilty.goodsDescription}`,
-      `Packages: ${bilty.noOfPackages}, Weight: ${bilty.totalWeightKg} kg`,
-      '',
-      'Charges:',
-      `  Freight: ₹${bilty.freightAmount}`,
-      `  Other: ₹${bilty.otherCharges ?? 0}`,
-      `  GST: ₹${bilty.gstAmount ?? 0}`,
-      `  Total: ₹${bilty.totalAmount}`,
-      '',
-      `Status: ${bilty.status}`,
-    ].filter(Boolean);
+    if (!bilty || !id) return;
 
     try {
+      // Ensure we have / create a public tracking link in Firestore
+      const { url } = await ensureBiltyPublicLink(String(id));
+
+      // Short message – what gets copied if user taps "Copy"
+      const message = `Track this bilty online:\n${url}`;
+
       await Share.share({
-        title: `Bilty ${bilty.biltyNumber}`,
-        message: lines.join('\n'),
+        title: `Track bilty ${bilty.biltyNumber}`,
+        message,
+        url, // some platforms use this field specifically
       });
     } catch (e) {
-      console.error('[AdminBiltyDetail] Share error', e);
+      console.error('[AdminBiltyDetail] share tracking link error', e);
+      Alert.alert(
+        'Error',
+        'Failed to generate tracking link. Please try again.',
+      );
     }
   };
 

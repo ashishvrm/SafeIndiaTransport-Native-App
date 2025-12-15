@@ -5,10 +5,12 @@ import {
   query,
   doc,
   getDoc,
+  setDoc,
   addDoc,
   where,
   updateDoc,
   deleteDoc, 
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Bilty, BiltyStatus, BiltyStatusHistoryItem, PaymentType } from '../models/bilty';
@@ -294,4 +296,50 @@ export async function updateBilty(
 export async function deleteBilty(id: string): Promise<void> {
   const ref = doc(db, 'bilties', id);
   await deleteDoc(ref);
+}
+// Create or reuse a public share id for this bilty and return a URL
+export async function ensureBiltyPublicLink(
+  biltyId: string,
+): Promise<{ publicId: string; url: string }> {
+  const biltyRef = doc(db, 'bilties', biltyId);
+  const biltySnap = await getDoc(biltyRef);
+
+  if (!biltySnap.exists()) {
+    throw new Error('Bilty not found');
+  }
+
+  const data = biltySnap.data() as Bilty & { publicShareId?: string };
+  let publicId = data.publicShareId;
+
+  if (!publicId) {
+    // create a mapping doc in `biltyPublicLinks` and store the id back on the bilty
+    const linkRef = doc(collection(db, 'biltyPublicLinks'));
+    publicId = linkRef.id;
+
+    await Promise.all([
+      updateDoc(biltyRef, { publicShareId: publicId }),
+      setDoc(linkRef, {
+        biltyId,
+        createdAt: serverTimestamp(),
+      }),
+    ]);
+  }
+
+  // TODO: change this to your real hosted web URL later
+  const PUBLIC_BASE_URL = 'https://safeindiatransport-status.web.app';
+  const url = `${PUBLIC_BASE_URL}/public/bilty/${publicId}`;
+
+  return { publicId, url };
+}
+export async function fetchBiltyByPublicId(
+  publicId: string,
+): Promise<Bilty | null> {
+  const linkRef = doc(db, 'biltyPublicLinks', publicId);
+  const linkSnap = await getDoc(linkRef);
+
+  if (!linkSnap.exists()) return null;
+
+  const { biltyId } = linkSnap.data() as { biltyId: string };
+  // you already have this function in this file
+  return fetchBiltyById(biltyId);
 }
