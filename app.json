@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "react-native-transport",
-    "slug": "react-native-transport",
+    "name": "safe-india-transport",
+    "slug": "safe-india-transport",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.safeindiatransposrt.nativeapp"
     },
     "web": {
       "output": "static",
@@ -43,6 +44,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1885b4d8-7ee4-4247-b3de-a0c7fd2fc140"
+      }
     }
   }
 }
