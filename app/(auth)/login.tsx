@@ -1,8 +1,8 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Image,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
@@ -101,14 +101,13 @@ export default function LoginScreen() {
         {/* Logo + welcome copy */}
         <View style={styles.header}>
           <View style={styles.logoCircle}>
-            {/* Replace this icon with your actual logo later if you want */}
-            <MaterialCommunityIcons
-              name="truck-delivery-outline"
-              size={28}
-              color={colors.primary}
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.logo}
+              resizeMode="contain"
             />
           </View>
-          <Text style={styles.brandName}>Safe India Transport</Text>
+          <Text style={styles.brandName}><br /></Text>
           <Text style={styles.welcomeTitle}>Welcome back!</Text>
           <Text style={styles.welcomeSubtitle}>
             Log in to manage your bilties and customers.
@@ -171,20 +170,6 @@ export default function LoginScreen() {
                 </PaperButton>
               )}
             </View>
-
-            {/* Small Firebase status text, non-intrusive */}
-            {firebaseStatus !== 'idle' && (
-              <Text
-                style={[
-                  styles.firebaseText,
-                  firebaseStatus === 'error' && { color: colors.danger },
-                ]}
-              >
-                {firebaseStatus === 'checking'
-                  ? 'Checking server connection…'
-                  : firebaseMessage}
-              </Text>
-            )}
           </Card.Content>
         </Card>
       </View>
@@ -214,6 +199,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+  },
+  logo: {
+    width: 148,
+    height: 148,
   },
   brandName: {
     fontSize: 16,
