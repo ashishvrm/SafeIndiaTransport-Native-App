@@ -306,11 +306,10 @@ export default function CustomerBiltiesScreen() {
 
   const handleNewBilty = () => {
     if (!id) return;
-    // keep your existing navigation behaviour – if you were not
-    // passing customerId earlier, just remove `params`.
+    // Navigate to new bilty form with consignee pre-filled
     router.push({
       pathname: '/(admin)/bilties/new',
-      params: { customerId: String(id) },
+      params: { consigneeId: String(id) },
     });
   };
 

@@ -119,6 +119,11 @@ export default function NewBiltyScreen() {
     };
 
     const handleConsigneeChange = (text: string) => {
+        // Don't allow changes if consignee is pre-filled from customer page
+        if (consigneeParam) {
+            return;
+        }
+
         setConsigneeName(text);
         setConsigneeId(''); // Clear the ID when user types
 
@@ -141,6 +146,11 @@ export default function NewBiltyScreen() {
     };
 
     const selectConsignee = (party: Party) => {
+        // Don't allow selection if consignee is pre-filled from customer page
+        if (consigneeParam) {
+            return;
+        }
+
         setConsigneeId(party.id);
         setConsigneeName(party.name);
         setConsigneeMenuVisible(false);
