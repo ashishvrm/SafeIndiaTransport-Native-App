@@ -107,7 +107,7 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.brandName}><br /></Text>
+          <Text style={styles.brandName}>Safe India Transport</Text>
           <Text style={styles.welcomeTitle}>Welcome back!</Text>
           <Text style={styles.welcomeSubtitle}>
             Log in to manage your bilties and customers.

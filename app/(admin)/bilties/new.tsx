@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
-import { Menu } from 'react-native-paper';
 import { fetchAllParties } from '../../../src/data/partiesRepository';
 import type { Party } from '../../../src/models/party';
 
@@ -27,7 +26,9 @@ export default function NewBiltyScreen() {
         consigneeId?: string;
     }>();
     const [consignorId, setConsignorId] = useState('');
+    const [consignorName, setConsignorName] = useState('');
     const [consigneeId, setConsigneeId] = useState('');
+    const [consigneeName, setConsigneeName] = useState('');
     const [origin, setOrigin] = useState('Delhi');
     const [destination, setDestination] = useState('Mumbai');
     const [goodsDescription, setGoodsDescription] = useState('General goods');
@@ -48,15 +49,9 @@ export default function NewBiltyScreen() {
     const [consigneePrefilled, setConsigneePrefilled] = useState(false);
 
     const [consignorMenuVisible, setConsignorMenuVisible] = useState(false);
+    const [consignorSuggestions, setConsignorSuggestions] = useState<Party[]>([]);
     const [consigneeMenuVisible, setConsigneeMenuVisible] = useState(false);
-
-    if (!user) {
-        return (
-            <View style={styles.center}>
-                <Text>You must be logged in as admin to create a bilty.</Text>
-            </View>
-        );
-    }
+    const [consigneeSuggestions, setConsigneeSuggestions] = useState<Party[]>([]);
 
     // Load parties on mount
     useEffect(() => {
@@ -88,10 +83,69 @@ export default function NewBiltyScreen() {
             const match = parties.find((p) => p.id === consigneeParam);
             if (match) {
                 setConsigneeId(match.id);
+                setConsigneeName(match.name);
                 setConsigneePrefilled(true);
             }
         }
     }, [consigneePrefilled, consigneeParam, parties]);
+
+    const handleConsignorChange = (text: string) => {
+        setConsignorName(text);
+        setConsignorId(''); // Clear the ID when user types
+
+        if (text.trim().length > 0) {
+            // Filter parties that match the input
+            const filtered = parties
+                .filter((p) => 
+                    p.isActive && 
+                    (p.type === 'consignor' || p.type === 'both') &&
+                    p.name.toLowerCase().includes(text.toLowerCase())
+                )
+                .slice(0, 5); // Limit to 5 suggestions
+            
+            setConsignorSuggestions(filtered);
+            setConsignorMenuVisible(filtered.length > 0);
+        } else {
+            setConsignorSuggestions([]);
+            setConsignorMenuVisible(false);
+        }
+    };
+
+    const selectConsignor = (party: Party) => {
+        setConsignorId(party.id);
+        setConsignorName(party.name);
+        setConsignorMenuVisible(false);
+        setConsignorSuggestions([]);
+    };
+
+    const handleConsigneeChange = (text: string) => {
+        setConsigneeName(text);
+        setConsigneeId(''); // Clear the ID when user types
+
+        if (text.trim().length > 0) {
+            // Filter parties that match the input
+            const filtered = parties
+                .filter((p) => 
+                    p.isActive && 
+                    (p.type === 'consignee' || p.type === 'both') &&
+                    p.name.toLowerCase().includes(text.toLowerCase())
+                )
+                .slice(0, 5); // Limit to 5 suggestions
+            
+            setConsigneeSuggestions(filtered);
+            setConsigneeMenuVisible(filtered.length > 0);
+        } else {
+            setConsigneeSuggestions([]);
+            setConsigneeMenuVisible(false);
+        }
+    };
+
+    const selectConsignee = (party: Party) => {
+        setConsigneeId(party.id);
+        setConsigneeName(party.name);
+        setConsigneeMenuVisible(false);
+        setConsigneeSuggestions([]);
+    };
 
     const handleSave = async () => {
         try {
@@ -103,8 +157,8 @@ export default function NewBiltyScreen() {
                 return;
             }
 
-            if (!consignorId || !consigneeId) {
-                setError('Please select both consignor and consignee.');
+            if (!consignorName.trim() || !consigneeName.trim()) {
+                setError('Please enter consignor and consignee names.');
                 return;
             }
 
@@ -120,8 +174,8 @@ export default function NewBiltyScreen() {
             }
 
             const input: NewBiltyInput = {
-                consignorId: consignorId.trim(),
-                consigneeId: consigneeId.trim(),
+                consignorId: consignorId.trim() || consignorName.trim(),
+                consigneeId: consigneeId.trim() || consigneeName.trim(),
                 origin: origin.trim(),
                 destination: destination.trim(),
                 goodsDescription: goodsDescription.trim(),
@@ -133,7 +187,7 @@ export default function NewBiltyScreen() {
                 paymentType,
                 vehicleId: vehicleId.trim() || undefined,
                 driverId: driverId.trim() || undefined,
-                createdBy: user.uid,
+                createdBy: user?.uid || '',
             };
 
             const newId = await createBilty(input);
@@ -159,13 +213,13 @@ export default function NewBiltyScreen() {
         (parseFloat(otherCharges || '0') || 0) +
         (parseFloat(gstAmount || '0') || 0);
 
-    const getPartyName = (id: string): string => {
-        const p = parties.find((x) => x.id === id);
-        return p ? p.name : id;
-    };
-
-    const consignorLabel = consignorId ? getPartyName(consignorId) : 'Select consignor';
-    const consigneeLabel = consigneeId ? getPartyName(consigneeId) : 'Select consignee';
+    if (!user) {
+        return (
+            <View style={styles.center}>
+                <Text>You must be logged in as admin to create a bilty.</Text>
+            </View>
+        );
+    }
 
     return (
         <KeyboardAvoidingView
@@ -186,63 +240,65 @@ export default function NewBiltyScreen() {
                     <Text style={[styles.infoText, { color: 'red' }]}>{partiesError}</Text>
                 )}
 
-                {/* Consignor dropdown */}
+                {/* Consignor autocomplete input */}
                 <Text style={styles.label}>Consignor</Text>
-                <Menu
-                    visible={consignorMenuVisible}
-                    onDismiss={() => setConsignorMenuVisible(false)}
-                    anchor={
-                        <TouchableOpacity
-                            onPress={() => setConsignorMenuVisible(true)}
-                            style={styles.selectorBox}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.selectorValue}>{consignorLabel}</Text>
-                        </TouchableOpacity>
-                    }
-                >
-                    {parties
-                        .filter((p) => p.isActive && (p.type === 'consignor' || p.type === 'both'))
-                        .map((p) => (
-                            <Menu.Item
-                                key={p.id}
-                                onPress={() => {
-                                    setConsignorId(p.id);
-                                    setConsignorMenuVisible(false);
-                                }}
-                                title={p.name}
-                            />
-                        ))}
-                </Menu>
+                <View style={styles.autocompleteWrapper}>
+                    <TextInput
+                        style={styles.input}
+                        value={consignorName}
+                        onChangeText={handleConsignorChange}
+                        placeholder="Type consignor name..."
+                        autoCapitalize="words"
+                    />
+                    {consignorMenuVisible && consignorSuggestions.length > 0 && (
+                        <View style={styles.suggestionsContainer}>
+                            {consignorSuggestions.map((p) => (
+                                <TouchableOpacity
+                                    key={p.id}
+                                    style={styles.suggestionItem}
+                                    onPress={() => selectConsignor(p)}
+                                >
+                                    <Text style={styles.suggestionText}>{p.name}</Text>
+                                    {p.city && p.state && (
+                                        <Text style={styles.suggestionSubtext}>
+                                            {p.city}, {p.state}
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+                </View>
 
-                {/* Consignee dropdown */}
+                {/* Consignee autocomplete input */}
                 <Text style={styles.label}>Consignee</Text>
-                <Menu
-                    visible={consigneeMenuVisible}
-                    onDismiss={() => setConsigneeMenuVisible(false)}
-                    anchor={
-                        <TouchableOpacity
-                            onPress={() => setConsigneeMenuVisible(true)}
-                            style={styles.selectorBox}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.selectorValue}>{consigneeLabel}</Text>
-                        </TouchableOpacity>
-                    }
-                >
-                    {parties
-                        .filter((p) => p.isActive && (p.type === 'consignee' || p.type === 'both'))
-                        .map((p) => (
-                            <Menu.Item
-                                key={p.id}
-                                onPress={() => {
-                                    setConsigneeId(p.id);
-                                    setConsigneeMenuVisible(false);
-                                }}
-                                title={p.name}
-                            />
-                        ))}
-                </Menu>
+                <View style={styles.autocompleteWrapper}>
+                    <TextInput
+                        style={styles.input}
+                        value={consigneeName}
+                        onChangeText={handleConsigneeChange}
+                        placeholder="Type consignee name..."
+                        autoCapitalize="words"
+                    />
+                    {consigneeMenuVisible && consigneeSuggestions.length > 0 && (
+                        <View style={styles.suggestionsContainer}>
+                            {consigneeSuggestions.map((p) => (
+                                <TouchableOpacity
+                                    key={p.id}
+                                    style={styles.suggestionItem}
+                                    onPress={() => selectConsignee(p)}
+                                >
+                                    <Text style={styles.suggestionText}>{p.name}</Text>
+                                    {p.city && p.state && (
+                                        <Text style={styles.suggestionSubtext}>
+                                            {p.city}, {p.state}
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+                </View>
 
 
                 <Text style={styles.sectionTitle}>Route</Text>
@@ -396,6 +452,44 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         marginBottom: 8,
         backgroundColor: colors.surface,
+    },
+    autocompleteWrapper: {
+        position: 'relative',
+        zIndex: 1000,
+        marginBottom: 8,
+    },
+    suggestionsContainer: {
+        position: 'absolute',
+        top: 40,
+        left: 0,
+        right: 0,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 8,
+        maxHeight: 200,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        zIndex: 1001,
+    },
+    suggestionItem: {
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    suggestionText: {
+        fontSize: 14,
+        color: colors.textMain,
+        fontWeight: '500',
+    },
+    suggestionSubtext: {
+        fontSize: 12,
+        color: colors.textSubtle,
+        marginTop: 2,
     },
     totalText: {
         marginTop: 8,
