@@ -157,8 +157,16 @@ export default function NewBiltyScreen() {
                 return;
             }
 
-            if (!consignorName.trim() || !consigneeName.trim()) {
-                setError('Please enter consignor and consignee names.');
+            // Validation: Consignee must be selected (not free-form)
+            if (!consigneeId.trim()) {
+                setError('Please select a consignee from the customer list.');
+                return;
+            }
+
+            // Consignor can be free-form or selected
+            const finalConsignorId = consignorId.trim() || consignorName.trim();
+            if (!finalConsignorId) {
+                setError('Please enter consignor name.');
                 return;
             }
 
@@ -174,8 +182,8 @@ export default function NewBiltyScreen() {
             }
 
             const input: NewBiltyInput = {
-                consignorId: consignorId.trim() || consignorName.trim(),
-                consigneeId: consigneeId.trim() || consigneeName.trim(),
+                consignorId: finalConsignorId,
+                consigneeId: consigneeId.trim(), // Always use the actual party ID
                 origin: origin.trim(),
                 destination: destination.trim(),
                 goodsDescription: goodsDescription.trim(),
@@ -231,6 +239,14 @@ export default function NewBiltyScreen() {
 
                 {error && <Text style={styles.error}>{error}</Text>}
 
+                {/* Show customer info banner when creating from customer page */}
+                {consigneeParam && consigneeName && (
+                    <View style={styles.customerBanner}>
+                        <Text style={styles.customerBannerLabel}>Creating bilty for customer:</Text>
+                        <Text style={styles.customerBannerName}>{consigneeName}</Text>
+                    </View>
+                )}
+
                 <Text style={styles.sectionTitle}>Parties</Text>
 
                 {partiesLoading && (
@@ -274,13 +290,14 @@ export default function NewBiltyScreen() {
                 <Text style={styles.label}>Consignee</Text>
                 <View style={styles.autocompleteWrapper}>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, consigneeParam && styles.inputDisabled]}
                         value={consigneeName}
                         onChangeText={handleConsigneeChange}
                         placeholder="Type consignee name..."
                         autoCapitalize="words"
+                        editable={!consigneeParam}
                     />
-                    {consigneeMenuVisible && consigneeSuggestions.length > 0 && (
+                    {consigneeMenuVisible && consigneeSuggestions.length > 0 && !consigneeParam && (
                         <View style={styles.suggestionsContainer}>
                             {consigneeSuggestions.map((p) => (
                                 <TouchableOpacity
@@ -541,5 +558,27 @@ const styles = StyleSheet.create({
         backgroundColor: colors.primary,
         borderColor: colors.primaryDark,
         color: '#ffffff',
+    },
+    customerBanner: {
+        backgroundColor: colors.softBlue,
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+        borderLeftWidth: 4,
+        borderLeftColor: colors.primary,
+    },
+    customerBannerLabel: {
+        fontSize: 12,
+        color: colors.textSubtle,
+        marginBottom: 4,
+    },
+    customerBannerName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.textMain,
+    },
+    inputDisabled: {
+        backgroundColor: colors.background,
+        opacity: 0.7,
     },
 });
