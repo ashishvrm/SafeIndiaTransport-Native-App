@@ -116,7 +116,7 @@ export default function AdminDashboardScreen() {
             subtitle="All bilties in the system"
             actionLabel="View all Bilties"
             onPressAction={() => router.push('/(admin)/bilties')}
-            tone="primary"
+            backgroundColor={colors.softBlue}
           />
 
           {/* Total customers */}
@@ -126,12 +126,14 @@ export default function AdminDashboardScreen() {
             subtitle="Your client accounts"
             actionLabel="View all Customers"
             onPressAction={() => router.push('/(admin)/customers')}
+            backgroundColor={colors.softGreen}
           />
 
           {/* In progress */}
           <StatCard
             title="In progress Bilties"
             subtitle="Created or in transit"
+            backgroundColor={colors.softYellow}
           >
             {inProgressBilties.length === 0 ? (
               <Text style={styles.emptyText}>No in-progress bilties.</Text>
@@ -145,7 +147,11 @@ export default function AdminDashboardScreen() {
           </StatCard>
 
           {/* Completed */}
-          <StatCard title="All completed Bilties" subtitle="Delivered">
+          <StatCard 
+            title="All completed Bilties" 
+            subtitle="Delivered"
+            backgroundColor={colors.softPurple}
+          >
             {completedBilties.length === 0 ? (
               <Text style={styles.emptyText}>No completed bilties yet.</Text>
             ) : (
@@ -161,6 +167,7 @@ export default function AdminDashboardScreen() {
           <StatCard
             title="Overdue Bilties"
             subtitle="Past due date & not delivered"
+            backgroundColor={colors.softRed}
           >
             {overdueBilties.length === 0 ? (
               <Text style={styles.emptyText}>No overdue bilties. 🎉</Text>

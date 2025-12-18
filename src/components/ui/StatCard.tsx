@@ -11,6 +11,7 @@ type StatCardProps = {
   actionLabel?: string;
   onPressAction?: () => void;
   tone?: 'primary' | 'neutral';
+  backgroundColor?: string; // Custom background color
   children?: React.ReactNode; // for custom content instead of value
 };
 
@@ -21,15 +22,26 @@ export function StatCard({
   actionLabel,
   onPressAction,
   tone = 'neutral',
+  backgroundColor,
   children,
 }: StatCardProps) {
   const isPrimary = tone === 'primary';
+
+  // Determine background color: custom > tone-based > default
+  const cardBackgroundColor = backgroundColor 
+    ? backgroundColor 
+    : isPrimary 
+    ? colors.primarySoft 
+    : undefined;
+
+  // Use 'contained' button mode when there's a custom background or primary tone
+  const buttonMode = (backgroundColor || isPrimary) ? 'contained' : 'contained-tonal';
 
   return (
     <Card
       style={[
         styles.card,
-        isPrimary && { backgroundColor: colors.primarySoft },
+        cardBackgroundColor && { backgroundColor: cardBackgroundColor },
       ]}
       mode="contained"
     >
@@ -57,7 +69,7 @@ export function StatCard({
       {actionLabel && onPressAction && (
         <Card.Actions>
           <Button
-            mode={isPrimary ? 'contained' : 'contained-tonal'}
+            mode={buttonMode}
             onPress={onPressAction}
             style={styles.actionButton}
           >
